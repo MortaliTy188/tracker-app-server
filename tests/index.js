@@ -8,7 +8,10 @@ const categoryTests = require("./categoryTests");
 const topicTests = require("./topicTests");
 const noteTests = require("./noteTests");
 const statusTests = require("./statusTests");
+<<<<<<< HEAD
 const FeedbackTests = require("./feedbackTests");
+=======
+>>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
 
 class TestRunner {
   constructor() {
@@ -45,9 +48,12 @@ class TestRunner {
       await sequelize.query('DELETE FROM "topic_status"', {
         type: sequelize.QueryTypes.DELETE,
       });
+<<<<<<< HEAD
       await sequelize.query('DELETE FROM "Feedback"', {
         type: sequelize.QueryTypes.DELETE,
       });
+=======
+>>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
 
       // Сбрасываем автоинкременты для PostgreSQL
       await sequelize.query("ALTER SEQUENCE users_id_seq RESTART WITH 1", {
@@ -70,9 +76,12 @@ class TestRunner {
       await sequelize.query('ALTER SEQUENCE "Note_id_seq" RESTART WITH 1', {
         type: sequelize.QueryTypes.RAW,
       });
+<<<<<<< HEAD
       await sequelize.query('ALTER SEQUENCE "Feedback_id_seq" RESTART WITH 1', {
         type: sequelize.QueryTypes.RAW,
       });
+=======
+>>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
 
       console.log("✅ База данных очищена");
     } catch (error) {
@@ -184,11 +193,14 @@ class TestRunner {
       console.log("===========================");
       await this.runNoteTests();
 
+<<<<<<< HEAD
       // 10. Тесты обратной связи
       console.log("\n📬 Тестирование API обратной связи");
       console.log("==================================");
       await this.runFeedbackTests();
 
+=======
+>>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
       // Отчет о результатах
       this.printTestResults();
 
@@ -283,6 +295,7 @@ class TestRunner {
     } catch (error) {
       this.recordTestResult("Тестирование заметок", false, error.message);
     }
+<<<<<<< HEAD
   } // Запуск тестов обратной связи
   async runFeedbackTests() {
     try {
@@ -312,6 +325,8 @@ class TestRunner {
         error.message
       );
     }
+=======
+>>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
   }
 
   // Вывод результатов тестирования
