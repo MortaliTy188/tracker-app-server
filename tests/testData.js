@@ -1,9 +1,5 @@
 // Тестовые данные для загрузки в базу данных
-<<<<<<< HEAD
 const { User, SkillCategory, TopicStatus, Feedback } = require("../models");
-=======
-const { User, SkillCategory, TopicStatus } = require("../models");
->>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
 const bcrypt = require("bcryptjs");
 
 class TestData {
@@ -14,17 +10,12 @@ class TestData {
       await this.createDefaultStatuses();
 
       // 2. Создание категорий навыков
-      await this.createDefaultCategories();
-
-      // 3. Создание тестовых пользователей
+      await this.createDefaultCategories(); // 3. Создание тестовых пользователей
       await this.createTestUsers();
 
-<<<<<<< HEAD
       // 4. Создание тестовых обратных связей
       await this.createTestFeedback();
 
-=======
->>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
       console.log("✅ Все тестовые данные созданы");
     } catch (error) {
       console.error("❌ Ошибка создания тестовых данных:", error);
@@ -220,7 +211,6 @@ class TestData {
       },
     };
   }
-<<<<<<< HEAD
 
   // Создание тестовых обратных связей
   async createTestFeedback() {
@@ -278,8 +268,6 @@ class TestData {
       }
     }
   }
-=======
->>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
 }
 
 module.exports = new TestData();

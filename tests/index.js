@@ -8,10 +8,8 @@ const categoryTests = require("./categoryTests");
 const topicTests = require("./topicTests");
 const noteTests = require("./noteTests");
 const statusTests = require("./statusTests");
-<<<<<<< HEAD
+const avatarTests = require("./avatarTests");
 const FeedbackTests = require("./feedbackTests");
-=======
->>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
 
 class TestRunner {
   constructor() {
@@ -48,12 +46,9 @@ class TestRunner {
       await sequelize.query('DELETE FROM "topic_status"', {
         type: sequelize.QueryTypes.DELETE,
       });
-<<<<<<< HEAD
       await sequelize.query('DELETE FROM "Feedback"', {
         type: sequelize.QueryTypes.DELETE,
       });
-=======
->>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
 
       // Сбрасываем автоинкременты для PostgreSQL
       await sequelize.query("ALTER SEQUENCE users_id_seq RESTART WITH 1", {
@@ -76,12 +71,9 @@ class TestRunner {
       await sequelize.query('ALTER SEQUENCE "Note_id_seq" RESTART WITH 1', {
         type: sequelize.QueryTypes.RAW,
       });
-<<<<<<< HEAD
       await sequelize.query('ALTER SEQUENCE "Feedback_id_seq" RESTART WITH 1', {
         type: sequelize.QueryTypes.RAW,
       });
-=======
->>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
 
       console.log("✅ База данных очищена");
     } catch (error) {
@@ -161,12 +153,10 @@ class TestRunner {
       // 3. Загрузка тестовых данных
       await this.loadTestData();
 
-      console.log("\n📋 Начинаем тестирование API...\n");
-
-      // 4. Тесты пользователей
+      console.log("\n📋 Начинаем тестирование API...\n"); // 4. Тесты пользователей
       console.log("👤 Тестирование API пользователей");
       console.log("================================");
-      await this.runUserTests();
+      const token = await this.runUserTests();
 
       // 5. Тесты статусов
       console.log("\n🏷️  Тестирование API статусов");
@@ -193,14 +183,20 @@ class TestRunner {
       console.log("===========================");
       await this.runNoteTests();
 
-<<<<<<< HEAD
-      // 10. Тесты обратной связи
+      // 10. Тесты аватарок (требуют токен авторизации)
+      if (token) {
+        console.log("\n🖼️ Тестирование API аватарок");
+        console.log("=============================");
+        await this.runAvatarTests(token);
+      } else {
+        console.log("\n⚠️ Пропускаем тесты аватарок - нет токена авторизации");
+      }
+
+      // 11. Тесты обратной связи
       console.log("\n📬 Тестирование API обратной связи");
       console.log("==================================");
       await this.runFeedbackTests();
 
-=======
->>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
       // Отчет о результатах
       this.printTestResults();
 
@@ -210,7 +206,6 @@ class TestRunner {
       return false;
     }
   }
-
   // Запуск тестов пользователей
   async runUserTests() {
     try {
@@ -242,8 +237,11 @@ class TestRunner {
         );
         this.recordTestResult("Получение полной информации", !!fullInfo);
       }
+
+      return token; // Возвращаем токен для использования в других тестах
     } catch (error) {
       this.recordTestResult("Тесты пользователей", false, error.message);
+      return null;
     }
   }
 
@@ -295,8 +293,36 @@ class TestRunner {
     } catch (error) {
       this.recordTestResult("Тестирование заметок", false, error.message);
     }
-<<<<<<< HEAD
-  } // Запуск тестов обратной связи
+  }
+
+  // Запуск тестов аватарок
+  async runAvatarTests(token) {
+    try {
+      console.log("\n🖼️ Запуск тестов аватарок...");
+      const results = await avatarTests.runAllTests(axios, this.baseURL, token);
+
+      this.recordTestResult("Тестирование аватарок", results.success);
+
+      // Записываем детальные результаты
+      if (results.details && Array.isArray(results.details)) {
+        results.details.forEach((test) => {
+          this.recordTestResult(
+            `Avatar: ${test.test}`,
+            test.status === "passed",
+            test.error
+          );
+        });
+      }
+
+      return results.success;
+    } catch (error) {
+      console.error("Критическая ошибка в тестах аватарок:", error);
+      this.recordTestResult("Тестирование аватарок", false, error.message);
+      return false;
+    }
+  }
+
+  // Запуск тестов обратной связи
   async runFeedbackTests() {
     try {
       const feedbackTests = new FeedbackTests(this.baseURL);
@@ -325,8 +351,6 @@ class TestRunner {
         error.message
       );
     }
-=======
->>>>>>> 608184a457fbd5edd18e1b0b397987bf942c1a88
   }
 
   // Вывод результатов тестирования

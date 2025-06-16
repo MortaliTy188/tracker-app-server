@@ -71,6 +71,44 @@ const errorHandler = (err, req, res, next) => {
       message: "Некорректный JSON в запросе",
     });
   }
+  // Ошибки multer (загрузка файлов)
+  const multer = require("multer");
+  if (err instanceof multer.MulterError) {
+    switch (err.code) {
+      case "LIMIT_FILE_SIZE":
+        return res.status(400).json({
+          success: false,
+          message: "Размер файла слишком большой (максимум 5MB)",
+        });
+      case "LIMIT_FILE_COUNT":
+        return res.status(400).json({
+          success: false,
+          message: "Слишком много файлов",
+        });
+      case "LIMIT_UNEXPECTED_FILE":
+        return res.status(400).json({
+          success: false,
+          message: "Неожиданное поле файла",
+        });
+      default:
+        return res.status(400).json({
+          success: false,
+          message: "Ошибка загрузки файла",
+          error: err.message,
+        });
+    }
+  }
+
+  // Ошибки обработки изображений
+  if (
+    err.message === "Недопустимый тип файла. Загружайте только изображения." ||
+    err.message === "Ошибка обработки изображения"
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
 
   // Общие HTTP ошибки
   if (err.status) {
@@ -124,6 +162,11 @@ const requestLogger = (req, res, next) => {
 // Middleware для валидации Content-Type
 const validateContentType = (req, res, next) => {
   if (["POST", "PUT", "PATCH"].includes(req.method)) {
+    // Пропускаем валидацию для маршрутов загрузки файлов
+    if (req.path.includes("/avatar")) {
+      return next();
+    }
+
     if (!req.is("application/json")) {
       return res.status(400).json({
         success: false,

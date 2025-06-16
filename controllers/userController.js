@@ -8,6 +8,7 @@ const {
   TopicStatus,
   Note,
 } = require("../models");
+const { deleteOldAvatar } = require("../middlewares/imageUpload");
 const UserValidation = require("./userValidation");
 
 const JWT_SECRET = "secret_key"; // В продакшене должен быть в переменных окружения
@@ -131,12 +132,109 @@ class UserController {
     }
   }
 
+  async uploadAvatar(req, res) {
+    try {
+      const userId = req.user.id;
+
+      if (!req.processedFile) {
+        return res.status(400).json({
+          success: false,
+          message: "Файл изображения не был загружен",
+        });
+      }
+
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Пользователь не найден",
+        });
+      }
+
+      if (user.avatar) {
+        deleteOldAvatar(user.avatar);
+      }
+
+      await user.update({
+        avatar: req.processedFile.url,
+      });
+
+      res.json({
+        success: true,
+        message: "Аватарка успешно загружена",
+        data: {
+          avatar: req.processedFile.url,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            avatar: req.processedFile.url,
+          },
+        },
+      });
+    } catch (error) {
+      console.log("Ошибка загрузки аватарки: ", error);
+      res.status(500).json({
+        success: false,
+        message: "Внутренняя ошибка сервера",
+        error: error.message,
+      });
+    }
+  }
+
+  async deleteAvatar(req, res) {
+    try {
+      const userId = req.user.id;
+
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Пользователь не найден",
+        });
+      }
+
+      if (!user.avatar) {
+        return res.status(400).json({
+          success: false,
+          message: "У пользователя нет аватарки",
+        });
+      }
+
+      deleteOldAvatar(user.avatar);
+
+      await user.update({
+        avatar: null,
+      });
+
+      res.json({
+        success: true,
+        message: "Аватарка успешно удалена",
+        data: {
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            avatar: null,
+          },
+        },
+      });
+    } catch (error) {
+      console.log("Ошибка удаления аватарки: ", error);
+      res.status(500).json({
+        success: false,
+        message: "Внутренняя ошибка сервера",
+        error: error.message,
+      });
+    }
+  }
+
   async getProfile(req, res) {
     try {
       const userId = req.user.id;
 
       const user = await User.findByPk(userId, {
-        attributes: ["id", "name", "email"], // Исключаем пароль
+        attributes: ["id", "name", "email", "avatar"], // Исключаем пароль
       });
 
       if (!user) {
@@ -195,7 +293,7 @@ class UserController {
       await User.update(updateData, { where: { id: userId } });
 
       const updatedUser = await User.findByPk(userId, {
-        attributes: ["id", "name", "email"],
+        attributes: ["id", "name", "email", "avatar"],
       });
 
       res.json({
@@ -391,6 +489,10 @@ class UserController {
           success: false,
           message: "Неверный пароль",
         });
+      }
+
+      if (user.avatar) {
+        deleteOldAvatar(user.avatar);
       }
 
       await User.destroy({ where: { id: userId } });

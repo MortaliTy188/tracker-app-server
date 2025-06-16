@@ -1,8 +1,31 @@
-
 class UserValidation {
   static isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  }
+
+  static validateAvatarFile(file) {
+    const errors = [];
+    const maxSize = 5 * 1024 * 1024;
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+    if (!file) {
+      errors.push("Файл изображения обязателен");
+      return { isValid: false, errors };
+    }
+
+    if (!allowedTypes.includes(file.mimetype)) {
+      errors.push("Недопустимый тип файла. Разрешены: JPEG, PNG, WebP, GIF");
+    }
+
+    if (file.size > maxSize) {
+      errors.push("Размер файла не должен превышать 5MB");
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
   }
 
   static isValidPassword(password) {

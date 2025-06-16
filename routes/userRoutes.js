@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
+const { uploadAvatar, processAvatar } = require("../middlewares/imageUpload");
 const userController = require("../controllers/userController");
 const authenticateJWT = require("../middlewares/authMiddleware");
+const authMiddleware = require("../middlewares/authMiddleware");
 
 /**
  * @swagger
@@ -322,5 +324,140 @@ router.get("/full-info", authenticateJWT, userController.getUserFullInfo);
  *         description: Неверный пароль
  */
 router.delete("/delete-account", authenticateJWT, userController.deleteAccount);
+
+/**
+ * @swagger
+ * /api/users/avatar:
+ *   post:
+ *     summary: Загрузить аватарку пользователя
+ *     tags: [Пользователи]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *                 description: Файл изображения (JPEG, PNG, WebP, GIF, максимум 5MB)
+ *     responses:
+ *       200:
+ *         description: Аватарка успешно загружена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Аватарка успешно загружена"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     avatar:
+ *                       type: string
+ *                       example: "/uploads/avatars/avatar-1-1640995200000.webp"
+ *                       description: URL загруженной аватарки
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                         name:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                         avatar:
+ *                           type: string
+ *       400:
+ *         description: Ошибка загрузки файла
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Размер файла слишком большой (максимум 5MB)"
+ *       401:
+ *         description: Не авторизован
+ *       404:
+ *         description: Пользователь не найден
+ */
+router.post(
+  "/avatar",
+  authMiddleware,
+  uploadAvatar,
+  processAvatar,
+  userController.uploadAvatar
+);
+
+/**
+ * @swagger
+ * /api/users/avatar:
+ *   delete:
+ *     summary: Удалить аватарку пользователя
+ *     tags: [Пользователи]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Аватарка успешно удалена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Аватарка успешно удалена"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                         name:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                         avatar:
+ *                           type: string
+ *                           nullable: true
+ *                           example: null
+ *       400:
+ *         description: У пользователя нет аватарки
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "У пользователя нет аватарки"
+ *       401:
+ *         description: Не авторизован
+ *       404:
+ *         description: Пользователь не найден
+ */
+router.delete("/avatar", authMiddleware, userController.deleteAvatar);
 
 module.exports = router;
