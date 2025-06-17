@@ -460,4 +460,92 @@ router.post(
  */
 router.delete("/avatar", authMiddleware, userController.deleteAvatar);
 
+/**
+ * @swagger
+ * /api/users/progress-stats:
+ *   get:
+ *     summary: Получить статистику прогресса пользователя
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Статистика прогресса получена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Статистика прогресса получена"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     progressStats:
+ *                       type: object
+ *                       properties:
+ *                         currentLevel:
+ *                           type: string
+ *                           example: "Продвинутый"
+ *                         completedTopics:
+ *                           type: integer
+ *                           example: 25
+ *                         nextLevel:
+ *                           type: string
+ *                           example: "Профессионал"
+ *                         topicsToNextLevel:
+ *                           type: integer
+ *                           example: 25
+ *       401:
+ *         description: Не авторизован
+ */
+router.get("/progress-stats", authMiddleware, userController.getProgressStats);
+
+/**
+ * @swagger
+ * /api/users/recalculate-level:
+ *   post:
+ *     summary: Пересчитать уровень пользователя вручную
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Уровень пользователя обновлен
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Уровень пользователя обновлен"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     levelInfo:
+ *                       type: object
+ *                       properties:
+ *                         level:
+ *                           type: string
+ *                           example: "Продвинутый"
+ *                         completedTopics:
+ *                           type: integer
+ *                           example: 25
+ *       401:
+ *         description: Не авторизован
+ */
+router.post(
+  "/recalculate-level",
+  authMiddleware,
+  userController.recalculateLevel
+);
+
 module.exports = router;

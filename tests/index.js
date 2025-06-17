@@ -1,6 +1,8 @@
 // Главный файл для запуска всех тестов
 const axios = require("axios");
 const { sequelize } = require("../models");
+const DatabaseCleaner = require("../utils/databaseCleaner");
+const PortFinder = require("../utils/portFinder");
 const testData = require("./testData");
 const userTests = require("./userApiTest");
 const skillTests = require("./skillTests");
@@ -10,10 +12,11 @@ const noteTests = require("./noteTests");
 const statusTests = require("./statusTests");
 const avatarTests = require("./avatarTests");
 const FeedbackTests = require("./feedbackTests");
+const AchievementTests = require("./achievementTests");
 
 class TestRunner {
   constructor() {
-    this.baseURL = "http://localhost:3000";
+    this.baseURL = null; // Будет установлен после обнаружения порта
     this.testResults = {
       passed: 0,
       failed: 0,
@@ -21,61 +24,10 @@ class TestRunner {
       details: [],
     };
   }
-
   // Очистка базы данных перед тестами
   async clearDatabase() {
     try {
-      console.log("🗑️  Очистка базы данных...");
-
-      // Очищаем все таблицы в правильном порядке (из-за FK constraints)
-      await sequelize.query('DELETE FROM "Note"', {
-        type: sequelize.QueryTypes.DELETE,
-      });
-      await sequelize.query('DELETE FROM "topics"', {
-        type: sequelize.QueryTypes.DELETE,
-      });
-      await sequelize.query('DELETE FROM "skills"', {
-        type: sequelize.QueryTypes.DELETE,
-      });
-      await sequelize.query('DELETE FROM "users"', {
-        type: sequelize.QueryTypes.DELETE,
-      });
-      await sequelize.query('DELETE FROM "skill_category"', {
-        type: sequelize.QueryTypes.DELETE,
-      });
-      await sequelize.query('DELETE FROM "topic_status"', {
-        type: sequelize.QueryTypes.DELETE,
-      });
-      await sequelize.query('DELETE FROM "Feedback"', {
-        type: sequelize.QueryTypes.DELETE,
-      });
-
-      // Сбрасываем автоинкременты для PostgreSQL
-      await sequelize.query("ALTER SEQUENCE users_id_seq RESTART WITH 1", {
-        type: sequelize.QueryTypes.RAW,
-      });
-      await sequelize.query("ALTER SEQUENCE skills_id_seq RESTART WITH 1", {
-        type: sequelize.QueryTypes.RAW,
-      });
-      await sequelize.query(
-        "ALTER SEQUENCE skill_category_id_seq RESTART WITH 1",
-        { type: sequelize.QueryTypes.RAW }
-      );
-      await sequelize.query("ALTER SEQUENCE topics_id_seq RESTART WITH 1", {
-        type: sequelize.QueryTypes.RAW,
-      });
-      await sequelize.query(
-        "ALTER SEQUENCE topic_status_id_seq RESTART WITH 1",
-        { type: sequelize.QueryTypes.RAW }
-      );
-      await sequelize.query('ALTER SEQUENCE "Note_id_seq" RESTART WITH 1', {
-        type: sequelize.QueryTypes.RAW,
-      });
-      await sequelize.query('ALTER SEQUENCE "Feedback_id_seq" RESTART WITH 1', {
-        type: sequelize.QueryTypes.RAW,
-      });
-
-      console.log("✅ База данных очищена");
+      await DatabaseCleaner.fullClean();
     } catch (error) {
       console.error("❌ Ошибка очистки базы данных:", error.message);
       throw error;
@@ -94,10 +46,15 @@ class TestRunner {
     }
   }
 
-  // Проверка доступности сервера
+  // Проверка доступности сервера  // Проверка доступности сервера
   async checkServerAvailability() {
     try {
-      console.log("🔍 Проверка доступности сервера...");
+      // Если baseURL еще не установлен, автоматически определяем порт
+      if (!this.baseURL) {
+        await this.discoverServerPort();
+      }
+
+      console.log(`🔍 Проверка доступности сервера на ${this.baseURL}...`);
       const response = await axios.get(`${this.baseURL}/health`, {
         timeout: 5000,
       });
@@ -132,6 +89,38 @@ class TestRunner {
       success,
       details,
     });
+  }
+
+  // Автоматическое определение порта сервера
+  async discoverServerPort() {
+    const DEFAULT_PORT = 3000;
+    const MAX_PORT_CHECK = 3010;
+
+    console.log("🔍 Поиск запущенного сервера...");
+
+    for (let port = DEFAULT_PORT; port <= MAX_PORT_CHECK; port++) {
+      try {
+        const response = await axios.get(`http://localhost:${port}/health`, {
+          timeout: 2000,
+        });
+
+        if (response.data.status === "healthy") {
+          this.baseURL = `http://localhost:${port}`;
+          console.log(`✅ Сервер найден на порту ${port}`);
+          return port;
+        }
+      } catch (error) {
+        // Порт не отвечает, продолжаем поиск
+        continue;
+      }
+    }
+
+    // Если сервер не найден, используем порт по умолчанию
+    this.baseURL = `http://localhost:${DEFAULT_PORT}`;
+    console.log(
+      `⚠️  Сервер не найден, используем порт по умолчанию: ${DEFAULT_PORT}`
+    );
+    return DEFAULT_PORT;
   }
 
   // Запуск всех тестов
@@ -190,12 +179,15 @@ class TestRunner {
         await this.runAvatarTests(token);
       } else {
         console.log("\n⚠️ Пропускаем тесты аватарок - нет токена авторизации");
-      }
-
-      // 11. Тесты обратной связи
+      } // 11. Тесты обратной связи
       console.log("\n📬 Тестирование API обратной связи");
       console.log("==================================");
       await this.runFeedbackTests();
+
+      // 12. Тесты системы достижений
+      console.log("\n🏆 Тестирование системы достижений");
+      console.log("==================================");
+      await this.runAchievementTests();
 
       // Отчет о результатах
       this.printTestResults();
@@ -350,6 +342,34 @@ class TestRunner {
         false,
         error.message
       );
+    }
+  }
+
+  // Запуск тестов системы достижений
+  async runAchievementTests() {
+    try {
+      const achievementTests = new AchievementTests();
+      const success = await achievementTests.runAllTests(this.baseURL);
+
+      // Интегрируем результаты в общую статистику
+      this.testResults.passed += achievementTests.testResults.passed;
+      this.testResults.failed += achievementTests.testResults.failed;
+      this.testResults.total += achievementTests.testResults.total;
+
+      // Добавляем детали тестов
+      achievementTests.testResults.details.forEach((detail) => {
+        this.testResults.details.push({
+          name: `Достижения: ${detail.name}`,
+          success: detail.passed,
+          details: detail.details,
+        });
+      });
+
+      return success;
+    } catch (error) {
+      console.error("❌ Ошибка в тестах достижений:", error.message);
+      this.recordTestResult("Система достижений", false, error.message);
+      return false;
     }
   }
 

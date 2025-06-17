@@ -7,6 +7,7 @@ const {
   Note,
 } = require("../models");
 const { Op } = require("sequelize");
+const AchievementManager = require("../utils/achievementManager");
 
 class SkillController {
   // Создать новый навык
@@ -66,6 +67,19 @@ class SkillController {
           },
         ],
       });
+
+      // Проверяем достижения после создания навыка
+      try {
+        await AchievementManager.checkAchievements(userId, "skill_created", {
+          skillId: skill.id,
+          categoryId: category_id,
+        });
+      } catch (achievementError) {
+        console.error(
+          "Ошибка проверки достижений при создании навыка:",
+          achievementError
+        );
+      }
 
       res.status(201).json({
         success: true,

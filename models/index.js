@@ -8,6 +8,8 @@ const TopicStatus = require("./topicStatusModel");
 const Topic = require("./topicModel");
 const Note = require("./noteModel");
 const Feedback = require("./feedbackModel");
+const Achievement = require("./achievementModel");
+const UserAchievement = require("./userAchievementModel");
 
 // Определение связей между моделями
 
@@ -61,6 +63,26 @@ Note.belongsTo(Topic, {
   as: "topic",
 });
 
+// User -> UserAchievement (один пользователь может иметь много достижений)
+User.hasMany(UserAchievement, {
+  foreignKey: "user_id",
+  as: "userAchievements",
+});
+UserAchievement.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
+// Achievement -> UserAchievement (одно достижение может быть у многих пользователей)
+Achievement.hasMany(UserAchievement, {
+  foreignKey: "achievement_id",
+  as: "userAchievements",
+});
+UserAchievement.belongsTo(Achievement, {
+  foreignKey: "achievement_id",
+  as: "achievement",
+});
+
 module.exports = {
   sequelize,
   User,
@@ -70,4 +92,6 @@ module.exports = {
   Topic,
   Note,
   Feedback,
+  Achievement,
+  UserAchievement,
 };

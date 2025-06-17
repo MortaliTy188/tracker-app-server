@@ -25,6 +25,16 @@ const User = sequelize.define(
       allowNull: true,
       defaultValue: null,
     },
+    level: {
+      type: DataTypes.ENUM("новичок", "базовый", "продвинутый", "эксперт"),
+      allowNull: false,
+      defaultValue: "новичок",
+    },
+    registrationDate: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
   },
   {
     tableName: "users",

@@ -19,6 +19,7 @@ const topicRoutes = require("./routes/topicRoutes");
 const noteRoutes = require("./routes/noteRoutes");
 const topicStatusRoutes = require("./routes/topicStatusRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
+const achievementRoutes = require("./routes/achievementRoutes");
 
 // Импорт middleware
 const {
@@ -29,8 +30,11 @@ const {
   bodyLimitHandler,
 } = require("./middlewares/errorHandler");
 
+// Импорт утилиты для поиска порта
+const PortFinder = require("./utils/portFinder");
+
 const app = express();
-const PORT = process.env.PORT || 3000;
+const DEFAULT_PORT = process.env.PORT || 3000;
 
 // Middleware для обработки CORS
 app.use(
@@ -121,6 +125,7 @@ app.use("/api/topics", topicRoutes);
 app.use("/api/notes", noteRoutes);
 app.use("/api/statuses", topicStatusRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/achievements", achievementRoutes);
 
 // Middleware для обработки несуществующих маршрутов
 app.use(notFoundHandler);
@@ -136,6 +141,9 @@ async function startServer() {
     // Синхронизация базы данных
     console.log("📦 Синхронизация с базой данных...");
     await syncDatabase();
+
+    // Поиск свободного порта
+    const PORT = await PortFinder.getAvailablePort(DEFAULT_PORT);
 
     // Запуск сервера
     app.listen(PORT, () => {

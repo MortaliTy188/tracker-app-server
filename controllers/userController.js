@@ -10,6 +10,11 @@ const {
 } = require("../models");
 const { deleteOldAvatar } = require("../middlewares/imageUpload");
 const UserValidation = require("./userValidation");
+const {
+  getUserProgressStats,
+  updateUserLevel,
+} = require("../utils/levelCalculator");
+const AchievementManager = require("../utils/achievementManager");
 
 const JWT_SECRET = "secret_key"; // В продакшене должен быть в переменных окружения
 
@@ -56,7 +61,6 @@ class UserController {
       const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
         expiresIn: "24h",
       });
-
       res.status(201).json({
         success: true,
         message: "Пользователь успешно зарегистрирован",
@@ -65,6 +69,8 @@ class UserController {
             id: user.id,
             name: user.name,
             email: user.email,
+            level: user.level,
+            registrationDate: user.registrationDate,
           },
           token,
         },
@@ -109,7 +115,6 @@ class UserController {
       const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
         expiresIn: "24h",
       });
-
       res.json({
         success: true,
         message: "Успешная авторизация",
@@ -118,6 +123,8 @@ class UserController {
             id: user.id,
             name: user.name,
             email: user.email,
+            level: user.level,
+            registrationDate: user.registrationDate,
           },
           token,
         },
@@ -158,7 +165,6 @@ class UserController {
       await user.update({
         avatar: req.processedFile.url,
       });
-
       res.json({
         success: true,
         message: "Аватарка успешно загружена",
@@ -169,6 +175,8 @@ class UserController {
             name: user.name,
             email: user.email,
             avatar: req.processedFile.url,
+            level: user.level,
+            registrationDate: user.registrationDate,
           },
         },
       });
@@ -206,7 +214,6 @@ class UserController {
       await user.update({
         avatar: null,
       });
-
       res.json({
         success: true,
         message: "Аватарка успешно удалена",
@@ -216,6 +223,8 @@ class UserController {
             name: user.name,
             email: user.email,
             avatar: null,
+            level: user.level,
+            registrationDate: user.registrationDate,
           },
         },
       });
@@ -232,9 +241,15 @@ class UserController {
   async getProfile(req, res) {
     try {
       const userId = req.user.id;
-
       const user = await User.findByPk(userId, {
-        attributes: ["id", "name", "email", "avatar"], // Исключаем пароль
+        attributes: [
+          "id",
+          "name",
+          "email",
+          "avatar",
+          "level",
+          "registrationDate",
+        ], // Исключаем пароль
       });
 
       if (!user) {
@@ -257,7 +272,6 @@ class UserController {
       });
     }
   }
-
   async updateProfile(req, res) {
     try {
       const userId = req.user.id;
@@ -293,7 +307,14 @@ class UserController {
       await User.update(updateData, { where: { id: userId } });
 
       const updatedUser = await User.findByPk(userId, {
-        attributes: ["id", "name", "email", "avatar"],
+        attributes: [
+          "id",
+          "name",
+          "email",
+          "avatar",
+          "level",
+          "registrationDate",
+        ],
       });
 
       res.json({
@@ -374,9 +395,8 @@ class UserController {
   async getUserFullInfo(req, res) {
     try {
       const userId = req.user.id;
-
       const user = await User.findByPk(userId, {
-        attributes: ["id", "name", "email"],
+        attributes: ["id", "name", "email", "level", "registrationDate"],
         include: [
           {
             model: Skill,
@@ -490,7 +510,6 @@ class UserController {
           message: "Неверный пароль",
         });
       }
-
       if (user.avatar) {
         deleteOldAvatar(user.avatar);
       }
@@ -503,6 +522,67 @@ class UserController {
       });
     } catch (error) {
       console.error("Ошибка удаления аккаунта:", error);
+      res.status(500).json({
+        success: false,
+        message: "Внутренняя ошибка сервера",
+        error: error.message,
+      });
+    }
+  }
+
+  // Получить статистику прогресса пользователя
+  async getProgressStats(req, res) {
+    try {
+      const userId = req.user.id;
+
+      const progressStats = await getUserProgressStats(userId);
+
+      res.json({
+        success: true,
+        message: "Статистика прогресса получена",
+        data: {
+          progressStats,
+        },
+      });
+    } catch (error) {
+      console.error("Ошибка получения статистики прогресса:", error);
+      res.status(500).json({
+        success: false,
+        message: "Внутренняя ошибка сервера",
+        error: error.message,
+      });
+    }
+  }
+  // Пересчитать уровень пользователя вручную
+  async recalculateLevel(req, res) {
+    try {
+      const userId = req.user.id;
+
+      const levelInfo = await updateUserLevel(userId);
+
+      // Проверяем достижения за уровень после обновления
+      try {
+        await AchievementManager.checkAchievements(userId, "level_updated", {
+          new_level: levelInfo.level,
+          completed_topics: levelInfo.completedTopics,
+        });
+      } catch (achievementError) {
+        console.error(
+          "Ошибка при проверке достижений за уровень:",
+          achievementError
+        );
+        // Не прерываем основной процесс при ошибке достижений
+      }
+
+      res.json({
+        success: true,
+        message: "Уровень пользователя обновлен",
+        data: {
+          levelInfo,
+        },
+      });
+    } catch (error) {
+      console.error("Ошибка пересчета уровня:", error);
       res.status(500).json({
         success: false,
         message: "Внутренняя ошибка сервера",

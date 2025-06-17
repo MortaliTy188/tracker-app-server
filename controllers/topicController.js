@@ -1,5 +1,7 @@
 const { Topic, TopicStatus, Skill, Note, User } = require("../models");
 const { Op } = require("sequelize");
+const { updateUserLevel } = require("../utils/levelCalculator");
+const AchievementManager = require("../utils/achievementManager");
 
 class TopicController {
   async createTopic(req, res) {
@@ -70,7 +72,6 @@ class TopicController {
         progress: topicProgress,
         estimated_hours: estimated_hours || null,
       });
-
       const createdTopic = await Topic.findByPk(topic.id, {
         include: [
           {
@@ -84,6 +85,20 @@ class TopicController {
           },
         ],
       });
+
+      // Проверяем достижения после создания топика
+      try {
+        await AchievementManager.checkAchievements(userId, "topic_created", {
+          topicId: topic.id,
+          skillId: skill_id,
+          progress: topicProgress,
+        });
+      } catch (achievementError) {
+        console.error(
+          "Ошибка проверки достижений при создании топика:",
+          achievementError
+        );
+      }
 
       res.status(201).json({
         success: true,
@@ -301,10 +316,9 @@ class TopicController {
             message: "Тема с таким названием уже существует в данном навыке",
           });
         }
-      }
-
-      // Обновление данных
+      } // Обновление данных
       const updateData = {};
+      const oldProgress = topic.progress;
       if (name) updateData.name = name.trim();
       if (description !== undefined)
         updateData.description = description ? description.trim() : null;
@@ -314,7 +328,40 @@ class TopicController {
       if (estimated_hours !== undefined)
         updateData.estimated_hours = estimated_hours;
 
-      await topic.update(updateData);
+      await topic.update(updateData); // Обновляем уровень пользователя если прогресс изменился и топик завершен/не завершен
+      let levelInfo = null;
+      if (
+        progress !== undefined &&
+        ((progress === 100 && oldProgress !== 100) ||
+          (progress !== 100 && oldProgress === 100))
+      ) {
+        try {
+          levelInfo = await updateUserLevel(userId);
+        } catch (error) {
+          console.error("Ошибка обновления уровня пользователя:", error);
+        }
+      }
+
+      // Проверяем достижения после обновления прогресса
+      if (progress !== undefined) {
+        try {
+          await AchievementManager.checkAchievements(
+            userId,
+            "topic_progress_updated",
+            {
+              topicId: id,
+              oldProgress: oldProgress,
+              newProgress: progress,
+              completed: progress === 100,
+            }
+          );
+        } catch (achievementError) {
+          console.error(
+            "Ошибка проверки достижений при обновлении прогресса:",
+            achievementError
+          );
+        }
+      }
 
       // Получение обновленной темы
       const updatedTopic = await Topic.findByPk(id, {
@@ -334,7 +381,10 @@ class TopicController {
       res.json({
         success: true,
         message: "Тема успешно обновлена",
-        data: { topic: updatedTopic },
+        data: {
+          topic: updatedTopic,
+          levelInfo,
+        },
       });
     } catch (error) {
       console.error("Ошибка обновления темы:", error);
@@ -379,9 +429,38 @@ class TopicController {
           message: "Тема не найдена",
         });
       }
-
       const oldProgress = topic.progress;
-      await topic.update({ progress });
+      await topic.update({ progress }); // Обновляем уровень пользователя если топик завершен или если был завершен и теперь не завершен
+      let levelInfo = null;
+      if (
+        (progress === 100 && oldProgress !== 100) ||
+        (progress !== 100 && oldProgress === 100)
+      ) {
+        try {
+          levelInfo = await updateUserLevel(userId);
+        } catch (error) {
+          console.error("Ошибка обновления уровня пользователя:", error);
+        }
+      }
+
+      // Проверяем достижения после обновления прогресса
+      try {
+        await AchievementManager.checkAchievements(
+          userId,
+          "topic_progress_updated",
+          {
+            topicId: id,
+            oldProgress: oldProgress,
+            newProgress: progress,
+            completed: progress === 100,
+          }
+        );
+      } catch (achievementError) {
+        console.error(
+          "Ошибка проверки достижений при обновлении прогресса:",
+          achievementError
+        );
+      }
 
       res.json({
         success: true,
@@ -394,6 +473,7 @@ class TopicController {
             newProgress: progress,
             isCompleted: progress === 100,
           },
+          levelInfo,
         },
       });
     } catch (error) {
@@ -422,7 +502,6 @@ class TopicController {
           },
         ],
       });
-
       if (!topic) {
         return res.status(404).json({
           success: false,
@@ -430,12 +509,27 @@ class TopicController {
         });
       }
 
+      const wasCompleted = topic.progress === 100;
+
       // Удаление темы (каскадно удалятся связанные заметки)
       await topic.destroy();
+
+      // Обновляем уровень пользователя если был удален завершенный топик
+      let levelInfo = null;
+      if (wasCompleted) {
+        try {
+          levelInfo = await updateUserLevel(userId);
+        } catch (error) {
+          console.error("Ошибка обновления уровня пользователя:", error);
+        }
+      }
 
       res.json({
         success: true,
         message: "Тема успешно удалена",
+        data: {
+          levelInfo,
+        },
       });
     } catch (error) {
       console.error("Ошибка удаления темы:", error);

@@ -1,5 +1,6 @@
 const { Note, Topic, Skill, User } = require("../models");
 const { Op } = require("sequelize");
+const AchievementManager = require("../utils/achievementManager");
 
 class NoteController {
   async createNote(req, res) {
@@ -31,12 +32,22 @@ class NoteController {
           message: "Тема не найдена или не принадлежит пользователю",
         });
       }
-
       const note = await Note.create({
         title: title.trim(),
         content: content.trim(),
         topic_id,
       });
+
+      // Проверяем достижения за создание заметки
+      try {
+        await AchievementManager.checkAchievements(userId, "note_created", {
+          note_id: note.id,
+          topic_id: topic_id,
+        });
+      } catch (achievementError) {
+        console.error("Ошибка при проверке достижений:", achievementError);
+        // Не прерываем основной процесс при ошибке достижений
+      }
 
       const createdNote = await Note.findByPk(note.id, {
         include: [

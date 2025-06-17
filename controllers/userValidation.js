@@ -31,7 +31,6 @@ class UserValidation {
   static isValidPassword(password) {
     return password && password.length >= 6;
   }
-
   static isValidName(name) {
     return name && name.trim().length >= 2 && name.trim().length <= 50;
   }
@@ -73,7 +72,6 @@ class UserValidation {
       errors,
     };
   }
-
   static validateProfileUpdateData(data) {
     const errors = [];
 

@@ -7,7 +7,16 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "sync-db": "node syncDatabase.js",
-    "test": "node tests/index.js"
+    "migrate-db": "node migrateDatabase.js",
+    "test": "node tests/index.js",
+    "test:levels-only": "node tests/index.js --levels-only",
+    "test:levels-standalone": "node tests/levelTestSuite.js",
+    "test:levels-unit": "node tests/levelTestSuite.js --unit-only",
+    "test:levels-quick": "node tests/levelTestSuite.js --quick",
+    "test:achievements": "node tests/achievementTestRunner.js",
+    "test:achievements-quick": "node tests/achievementTestRunner.js --quick",
+    "recalculate-levels": "node recalculateLevels.js",
+    "init-achievements": "node initializeAchievements.js"
   },
   "keywords": [
     "tracker",
@@ -16,7 +25,7 @@
     "progress",
     "api"
   ],
-  "author": "Developer",
+  "author": "Kirill Shamanaev",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
