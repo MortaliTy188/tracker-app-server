@@ -114,8 +114,7 @@ class AchievementManager {
 
   /**
    * Вычисляет текущий прогресс для конкретного достижения
-   */
-  static async calculateProgress(userId, achievement) {
+   */ static async calculateProgress(userId, achievement) {
     try {
       switch (achievement.type) {
         case "topics_completed":
@@ -141,6 +140,11 @@ class AchievementManager {
             userId,
             achievement.condition_data
           );
+        case "special":
+          return await this.checkSpecialAchievement(userId, achievement);
+
+        case "streak_days":
+          return await this.getStreakDays(userId);
 
         default:
           return 0;
@@ -385,7 +389,6 @@ class AchievementManager {
           },
         ],
       })) || 0;
-
     return {
       total: totalAchievements,
       completed: completedAchievements,
@@ -395,6 +398,148 @@ class AchievementManager {
           : 0,
       points: totalPoints,
     };
+  }
+  /**
+   * Проверяет специальные достижения
+   */ static async checkSpecialAchievement(userId, achievement) {
+    try {
+      // Проверяем по названию достижения
+      switch (achievement.name) {
+        case "Индивидуальность":
+          // Проверяем, есть ли у пользователя аватар
+          const user = await User.findByPk(userId);
+          return user && user.avatar ? 1 : 0;
+
+        case "Представительность":
+          // Проверяем, заполнен ли профиль полностью
+          const fullUser = await User.findByPk(userId);
+          if (fullUser && fullUser.name && fullUser.email && fullUser.avatar) {
+            return 1;
+          }
+          return 0;
+
+        case "Ранняя пташка":
+          // Проверяем, входил ли пользователь до 6:00
+          return await this.checkEarlyBirdLogin(userId);
+
+        case "Полуночник":
+          // Проверяем, входил ли пользователь после 23:00
+          return await this.checkNightOwlLogin(userId);
+
+        case "Выходной энтузиаст":
+          // Проверяем, входил ли пользователь в выходные
+          return await this.checkWeekendLogin(userId);
+        case "Первопроходец":
+          // Проверяем, входит ли пользователь в первые 100
+          // Если ID пользователя <= 100, то он точно один из первых 100
+          return userId <= 100 ? 100 : 0;
+
+        // Достижения по опыту
+        case "Студент":
+          const totalPoints1 = await this.getUserTotalPoints(userId);
+          return totalPoints1 >= 100 ? 1 : 0;
+
+        case "Бакалавр":
+          const totalPoints2 = await this.getUserTotalPoints(userId);
+          return totalPoints2 >= 500 ? 1 : 0;
+
+        case "Магистр":
+          const totalPoints3 = await this.getUserTotalPoints(userId);
+          return totalPoints3 >= 1000 ? 1 : 0;
+
+        case "Доктор наук":
+          const totalPoints4 = await this.getUserTotalPoints(userId);
+          return totalPoints4 >= 2500 ? 1 : 0;
+
+        default:
+          return 0;
+      }
+    } catch (error) {
+      console.error("Ошибка при проверке специального достижения:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество дней подряд активности
+   */
+  static async getStreakDays(userId) {
+    try {
+      // Здесь должна быть логика подсчета стриков
+      // Пока возвращаем 0, но нужно реализовать
+      // подсчет последовательных дней активности
+      return 0;
+    } catch (error) {
+      console.error("Ошибка при подсчете стриков:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Проверяет вход до 6:00
+   */
+  static async checkEarlyBirdLogin(userId) {
+    try {
+      // Можно проверять логи активности или время последнего входа
+      // Для упрощения проверим текущее время
+      const now = new Date();
+      return now.getHours() < 6 ? 1 : 0;
+    } catch (error) {
+      console.error("Ошибка при проверке раннего входа:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Проверяет вход после 23:00
+   */
+  static async checkNightOwlLogin(userId) {
+    try {
+      const now = new Date();
+      return now.getHours() >= 23 ? 1 : 0;
+    } catch (error) {
+      console.error("Ошибка при проверке позднего входа:", error);
+      return 0;
+    }
+  }
+  /**
+   * Проверяет вход в выходные
+   */
+  static async checkWeekendLogin(userId) {
+    try {
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0 = воскресенье, 6 = суббота
+      return dayOfWeek === 0 || dayOfWeek === 6 ? 1 : 0;
+    } catch (error) {
+      console.error("Ошибка при проверке входа в выходные:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Получает общее количество очков пользователя
+   */
+  static async getUserTotalPoints(userId) {
+    try {
+      const { UserAchievement, Achievement } = require("../models");
+      const totalPoints = await UserAchievement.sum("achievement.points", {
+        where: {
+          user_id: userId,
+          is_completed: true,
+        },
+        include: [
+          {
+            model: Achievement,
+            as: "achievement",
+            attributes: [],
+          },
+        ],
+      });
+      return totalPoints || 0;
+    } catch (error) {
+      console.error("Ошибка при получении общих очков:", error);
+      return 0;
+    }
   }
 }
 

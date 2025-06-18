@@ -52,11 +52,15 @@ class UserController {
 
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
-
       const user = await User.create({
         name: sanitizedName,
         email: normalizedEmail,
         password: hashedPassword,
+      });
+
+      // Проверяем достижения при регистрации
+      await AchievementManager.checkAchievements(user.id, "registration", {
+        userId: user.id,
       });
 
       const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
@@ -112,10 +116,15 @@ class UserController {
           message: "Неверный email или пароль",
         });
       }
-
       const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
         expiresIn: "24h",
       });
+
+      // Проверяем временные достижения при входе
+      await AchievementManager.checkAchievements(user.id, "login", {
+        loginTime: new Date(),
+      });
+
       res.json({
         success: true,
         message: "Успешная авторизация",
@@ -164,9 +173,7 @@ class UserController {
 
       await user.update({
         avatar: req.processedFile.url,
-      });
-
-      // Логируем смену аватара
+      }); // Логируем смену аватара
       await ActivityLogger.log(
         userId,
         "AVATAR_CHANGE",
@@ -178,6 +185,12 @@ class UserController {
         },
         req
       );
+
+      // Проверяем достижения после загрузки аватара
+      await AchievementManager.checkAchievements(userId, "avatar_uploaded", {
+        avatar: req.processedFile.url,
+      });
+
       res.json({
         success: true,
         message: "Аватарка успешно загружена",
@@ -331,7 +344,6 @@ class UserController {
       if (email) updateData.email = email;
 
       await User.update(updateData, { where: { id: userId } });
-
       const updatedUser = await User.findByPk(userId, {
         attributes: [
           "id",
@@ -341,6 +353,13 @@ class UserController {
           "level",
           "registrationDate",
         ],
+      });
+
+      // Проверяем достижения после обновления профиля
+      await AchievementManager.checkAchievements(userId, "profile_updated", {
+        name: updatedUser.name,
+        email: updatedUser.email,
+        avatar: updatedUser.avatar,
       });
 
       res.json({
