@@ -1201,7 +1201,7 @@ FRONTEND_URL=http://localhost:3001         # URL фронтенда
 
 **Автор:** Kirill Shamanaev  
 **Лицензия:** ISC  
-**Версия:** 1.5.1
+**Версия:** 1.5.2
 
 ---
 
