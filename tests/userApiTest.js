@@ -170,29 +170,38 @@ const testUserAPI = {
       // Проверяем структуру ответа
       if (response.data.success && response.data.data) {
         const userData = response.data.data.user;
-        const requiredFields = ['id', 'name', 'email', 'level', 'registrationDate', 'avatar'];
-        const missingFields = requiredFields.filter(field => !(field in userData));
-        
+        const requiredFields = [
+          "id",
+          "name",
+          "email",
+          "level",
+          "registrationDate",
+          "avatar",
+        ];
+        const missingFields = requiredFields.filter(
+          (field) => !(field in userData)
+        );
+
         if (missingFields.length > 0) {
-          console.log(`⚠️  Отсутствуют поля: ${missingFields.join(', ')}`);
+          console.log(`⚠️  Отсутствуют поля: ${missingFields.join(", ")}`);
         } else {
           console.log("✅ Все обязательные поля присутствуют (включая avatar)");
         }
-        
+
         console.log("✅ Полная информация получена:", {
           user: {
             id: userData.id,
             name: userData.name,
             email: userData.email,
             level: userData.level,
-            avatar: userData.avatar || 'не установлен'
+            avatar: userData.avatar || "не установлен",
           },
-          stats: response.data.data.stats
+          stats: response.data.data.stats,
         });
       } else {
         console.log("✅ Полная информация получена:", response.data);
       }
-      
+
       return response.data;
     } catch (error) {
       console.error(

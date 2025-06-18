@@ -4,10 +4,6 @@ const { uploadAvatar, processAvatar } = require("../middlewares/imageUpload");
 const userController = require("../controllers/userController");
 const authenticateJWT = require("../middlewares/authMiddleware");
 const authMiddleware = require("../middlewares/authMiddleware");
-const {
-  authActivityMiddleware,
-  profileActivityMiddleware,
-} = require("../middlewares/activityMiddleware");
 
 /**
  * @swagger

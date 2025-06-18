@@ -75,11 +75,17 @@ const deleteOldAvatar = (avatarPath) => {
       try {
         fs.unlinkSync(fullPath);
         console.log(`Удалена старая аватарка: ${filename}`);
+        return { success: true, deletedFile: filename };
       } catch (error) {
         console.error(`Ошибка удаления файла ${filename}:`, error);
+        return { success: false, error: error.message };
       }
+    } else {
+      console.log(`Файл аватарки не найден: ${filename}`);
+      return { success: false, error: "Файл не найден" };
     }
   }
+  return { success: false, error: "Путь к аватарке не указан" };
 };
 
 module.exports = {

@@ -18,7 +18,10 @@
     "recalculate-levels": "node recalculateLevels.js",
     "init-achievements": "node initializeAchievements.js",
     "setup-activity": "node setupActivityLogs.js",
-    "cleanup-activity": "node setupActivityLogs.js --cleanup"
+    "cleanup-activity": "node setupActivityLogs.js --cleanup",
+    "avatars:stats": "node setup/cleanupAvatars.js --stats",
+    "avatars:check": "node setup/cleanupAvatars.js",
+    "avatars:clean": "node setup/cleanupAvatars.js --clean"
   },
   "keywords": [
     "tracker",
