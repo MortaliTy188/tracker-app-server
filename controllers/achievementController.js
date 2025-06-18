@@ -1,5 +1,6 @@
 const { Achievement, UserAchievement } = require("../models");
 const AchievementManager = require("../utils/achievementManager");
+const ActivityLogger = require("../utils/activityLogger");
 
 class AchievementController {
   // Получить все достижения
@@ -118,7 +119,6 @@ class AchievementController {
           achievement
         );
         const shouldComplete = currentProgress >= achievement.condition_value;
-
         if (
           userAchievement.progress !== currentProgress ||
           userAchievement.is_completed !== shouldComplete
@@ -131,6 +131,11 @@ class AchievementController {
                 ? new Date()
                 : userAchievement.completed_at,
           });
+
+          // Логирование получения достижения
+          if (shouldComplete && !userAchievement.is_completed) {
+            await ActivityLogger.logAchievementEarned(userId, achievement, req);
+          }
         }
 
         progressData.push({

@@ -1,6 +1,7 @@
 const { Note, Topic, Skill, User } = require("../models");
 const { Op } = require("sequelize");
 const AchievementManager = require("../utils/achievementManager");
+const ActivityLogger = require("../utils/activityLogger");
 
 class NoteController {
   async createNote(req, res) {
@@ -37,6 +38,9 @@ class NoteController {
         content: content.trim(),
         topic_id,
       });
+
+      // Логирование создания заметки
+      await ActivityLogger.logNoteCreated(userId, note, req);
 
       // Проверяем достижения за создание заметки
       try {
@@ -229,12 +233,19 @@ class NoteController {
           message: "Необходимо указать заголовок или содержание для обновления",
         });
       }
-
       const updateData = {};
       if (title) updateData.title = title.trim();
       if (content) updateData.content = content.trim();
 
       await note.update(updateData);
+
+      // Логирование обновления заметки
+      await ActivityLogger.logNoteUpdated(
+        userId,
+        note,
+        Object.keys(updateData),
+        req
+      );
 
       const updatedNote = await Note.findByPk(id, {
         include: [
@@ -289,13 +300,15 @@ class NoteController {
           },
         ],
       });
-
       if (!note) {
         return res.status(404).json({
           success: false,
           message: "Заметка не найдена",
         });
       }
+
+      // Логирование удаления заметки (сохраняем данные до удаления)
+      await ActivityLogger.logNoteDeleted(userId, note, req);
 
       await note.destroy();
 

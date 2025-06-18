@@ -16,7 +16,9 @@
     "test:achievements": "node tests/achievementTestRunner.js",
     "test:achievements-quick": "node tests/achievementTestRunner.js --quick",
     "recalculate-levels": "node recalculateLevels.js",
-    "init-achievements": "node initializeAchievements.js"
+    "init-achievements": "node initializeAchievements.js",
+    "setup-activity": "node setupActivityLogs.js",
+    "cleanup-activity": "node setupActivityLogs.js --cleanup"
   },
   "keywords": [
     "tracker",
@@ -45,6 +47,7 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "supertest": "^7.1.1"
   }
 }

@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const skillController = require("../controllers/skillController");
 const authMiddleware = require("../middlewares/authMiddleware");
+const {
+  skillActivityMiddleware,
+} = require("../middlewares/activityMiddleware");
 
 // Применяем middleware авторизации ко всем маршрутам навыков
 router.use(authMiddleware);

@@ -13,6 +13,7 @@ const statusTests = require("./statusTests");
 const avatarTests = require("./avatarTests");
 const FeedbackTests = require("./feedbackTests");
 const AchievementTests = require("./achievementTests");
+const activityTests = require("./activityTests");
 
 class TestRunner {
   constructor() {
@@ -182,12 +183,21 @@ class TestRunner {
       } // 11. Тесты обратной связи
       console.log("\n📬 Тестирование API обратной связи");
       console.log("==================================");
-      await this.runFeedbackTests();
-
-      // 12. Тесты системы достижений
+      await this.runFeedbackTests(); // 12. Тесты системы достижений
       console.log("\n🏆 Тестирование системы достижений");
       console.log("==================================");
       await this.runAchievementTests();
+
+      // 13. Тесты системы активности
+      if (token) {
+        console.log("\n📊 Тестирование системы активности");
+        console.log("==================================");
+        await this.runActivityTests(token);
+      } else {
+        console.log(
+          "\n⚠️ Пропускаем тесты активности - нет токена авторизации"
+        );
+      }
 
       // Отчет о результатах
       this.printTestResults();
@@ -364,11 +374,39 @@ class TestRunner {
           details: detail.details,
         });
       });
-
       return success;
     } catch (error) {
       console.error("❌ Ошибка в тестах достижений:", error.message);
       this.recordTestResult("Система достижений", false, error.message);
+      return false;
+    }
+  }
+
+  // Запуск тестов системы активности
+  async runActivityTests(token) {
+    try {
+      const success = await activityTests.runAllTests(this.baseURL, token);
+
+      // Интегрируем результаты в общую статистику
+      if (activityTests.testResults) {
+        this.testResults.passed += activityTests.testResults.passed;
+        this.testResults.failed += activityTests.testResults.failed;
+        this.testResults.total += activityTests.testResults.total;
+
+        // Добавляем детали тестов
+        activityTests.testResults.details.forEach((detail) => {
+          this.testResults.details.push({
+            name: `Активность: ${detail.name}`,
+            success: detail.success,
+            details: detail.details,
+          });
+        });
+      }
+
+      return success;
+    } catch (error) {
+      console.error("❌ Ошибка в тестах активности:", error.message);
+      this.recordTestResult("Система активности", false, error.message);
       return false;
     }
   }

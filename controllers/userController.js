@@ -15,6 +15,7 @@ const {
   updateUserLevel,
 } = require("../utils/levelCalculator");
 const AchievementManager = require("../utils/achievementManager");
+const ActivityLogger = require("../utils/activityLogger");
 
 const JWT_SECRET = "secret_key"; // В продакшене должен быть в переменных окружения
 
@@ -57,10 +58,23 @@ class UserController {
         email: normalizedEmail,
         password: hashedPassword,
       });
-
       const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
         expiresIn: "24h",
       });
+
+      // Логирование регистрации
+      await ActivityLogger.log(
+        user.id,
+        "PROFILE_UPDATE",
+        {
+          method: "register",
+          registrationTime: new Date(),
+          username: sanitizedName,
+          email: normalizedEmail,
+        },
+        req
+      );
+
       res.status(201).json({
         success: true,
         message: "Пользователь успешно зарегистрирован",
@@ -111,10 +125,13 @@ class UserController {
           message: "Неверный email или пароль",
         });
       }
-
       const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
         expiresIn: "24h",
       });
+
+      // Логирование входа в систему
+      await ActivityLogger.logLogin(user.id, req);
+
       res.json({
         success: true,
         message: "Успешная авторизация",
@@ -157,6 +174,7 @@ class UserController {
           message: "Пользователь не найден",
         });
       }
+      const oldAvatar = user.avatar;
 
       if (user.avatar) {
         deleteOldAvatar(user.avatar);
@@ -165,6 +183,15 @@ class UserController {
       await user.update({
         avatar: req.processedFile.url,
       });
+
+      // Логирование смены аватара
+      await ActivityLogger.logAvatarChange(
+        userId,
+        oldAvatar,
+        req.processedFile.url,
+        req
+      );
+
       res.json({
         success: true,
         message: "Аватарка успешно загружена",
@@ -208,12 +235,17 @@ class UserController {
           message: "У пользователя нет аватарки",
         });
       }
+      const oldAvatar = user.avatar;
 
       deleteOldAvatar(user.avatar);
 
       await user.update({
         avatar: null,
       });
+
+      // Логирование удаления аватара
+      await ActivityLogger.logAvatarChange(userId, oldAvatar, null, req);
+
       res.json({
         success: true,
         message: "Аватарка успешно удалена",
@@ -299,12 +331,45 @@ class UserController {
           });
         }
       }
-
       const updateData = {};
-      if (name) updateData.name = name;
-      if (email) updateData.email = email;
+      const changedFields = [];
+      const oldValues = {};
+      const newValues = {};
+
+      // Получаем старые значения
+      const currentUser = await User.findByPk(userId);
+
+      if (name && name !== currentUser.name) {
+        updateData.name = name;
+        changedFields.push("name");
+        oldValues.name = currentUser.name;
+        newValues.name = name;
+      }
+
+      if (email && email !== currentUser.email) {
+        updateData.email = email;
+        changedFields.push("email");
+        oldValues.email = currentUser.email;
+        newValues.email = email;
+      }
+
+      if (changedFields.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Никаких изменений не обнаружено",
+        });
+      }
 
       await User.update(updateData, { where: { id: userId } });
+
+      // Логирование изменений профиля
+      await ActivityLogger.logProfileUpdate(
+        userId,
+        changedFields,
+        oldValues,
+        newValues,
+        req
+      );
 
       const updatedUser = await User.findByPk(userId, {
         attributes: [
@@ -372,11 +437,13 @@ class UserController {
 
       const saltRounds = 10;
       const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
       await User.update(
         { password: hashedNewPassword },
         { where: { id: userId } }
       );
+
+      // Логирование смены пароля
+      await ActivityLogger.logPasswordChange(userId, req);
 
       res.json({
         success: true,
@@ -396,7 +463,14 @@ class UserController {
     try {
       const userId = req.user.id;
       const user = await User.findByPk(userId, {
-        attributes: ["id", "name", "email", "level", "registrationDate"],
+        attributes: [
+          "id",
+          "name",
+          "email",
+          "level",
+          "registrationDate",
+          "avatar",
+        ],
         include: [
           {
             model: Skill,

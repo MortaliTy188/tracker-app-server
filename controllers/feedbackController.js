@@ -1,5 +1,6 @@
 const { Feedback } = require("../models");
 const { Op } = require("sequelize");
+const ActivityLogger = require("../utils/activityLogger");
 
 class FeedbackController {
   // Create new feedback
@@ -36,6 +37,11 @@ class FeedbackController {
         email_theme: email_theme.trim(),
         message: message.trim(),
       });
+
+      // Логирование отправки обратной связи (если пользователь авторизован)
+      if (req.user && req.user.id) {
+        await ActivityLogger.logFeedbackSubmitted(req.user.id, feedback, req);
+      }
 
       res.status(201).json({
         success: true,

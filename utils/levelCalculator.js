@@ -5,15 +5,15 @@ const { Topic, Skill } = require("../models");
  */
 function calculateUserLevel(completedTopicsCount) {
   if (completedTopicsCount >= 100) {
-    return "Эксперт";
+    return "эксперт";
   } else if (completedTopicsCount >= 50) {
-    return "Профессионал";
+    return "продвинутый";
   } else if (completedTopicsCount >= 20) {
-    return "Продвинутый";
+    return "продвинутый";
   } else if (completedTopicsCount >= 5) {
-    return "Средний";
+    return "базовый";
   } else {
-    return "Новичок";
+    return "новичок";
   }
 }
 

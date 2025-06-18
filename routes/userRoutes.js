@@ -4,6 +4,10 @@ const { uploadAvatar, processAvatar } = require("../middlewares/imageUpload");
 const userController = require("../controllers/userController");
 const authenticateJWT = require("../middlewares/authMiddleware");
 const authMiddleware = require("../middlewares/authMiddleware");
+const {
+  authActivityMiddleware,
+  profileActivityMiddleware,
+} = require("../middlewares/activityMiddleware");
 
 /**
  * @swagger
@@ -30,10 +34,24 @@ const authMiddleware = require("../middlewares/authMiddleware");
  *           type: string
  *           minLength: 6
  *           description: Пароль пользователя
+ *         avatar:
+ *           type: string
+ *           nullable: true
+ *           description: Путь к аватару пользователя
+ *         level:
+ *           type: string
+ *           description: Уровень пользователя (Новичок, Средний, Продвинутый, Профессионал, Эксперт)
+ *         registrationDate:
+ *           type: string
+ *           format: date-time
+ *           description: Дата регистрации пользователя
  *       example:
  *         id: 1
  *         name: "Иван Иванов"
  *         email: "ivan@example.com"
+ *         avatar: "/uploads/avatars/avatar-1-123456789.webp"
+ *         level: "Новичок"
+ *         registrationDate: "2024-01-15T10:30:00Z"
  *
  *     AuthResponse:
  *       type: object
@@ -280,18 +298,45 @@ router.put("/change-password", authenticateJWT, userController.changePassword);
  *                   properties:
  *                     user:
  *                       type: object
- *                       description: Пользователь с навыками, темами и заметками
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           description: ID пользователя
+ *                         name:
+ *                           type: string
+ *                           description: Имя пользователя
+ *                         email:
+ *                           type: string
+ *                           description: Email пользователя
+ *                         level:
+ *                           type: string
+ *                           description: Уровень пользователя
+ *                         registrationDate:
+ *                           type: string
+ *                           format: date-time
+ *                           description: Дата регистрации
+ *                         avatar:
+ *                           type: string
+ *                           nullable: true
+ *                           description: Путь к аватару пользователя
+ *                         skills:
+ *                           type: array
+ *                           description: Массив навыков со связанными темами и заметками
  *                     stats:
  *                       type: object
  *                       properties:
  *                         totalSkills:
  *                           type: integer
+ *                           description: Общее количество навыков
  *                         totalTopics:
  *                           type: integer
+ *                           description: Общее количество тем
  *                         totalNotes:
  *                           type: integer
+ *                           description: Общее количество заметок
  *                         averageProgress:
  *                           type: integer
+ *                           description: Средний прогресс по всем темам
  */
 router.get("/full-info", authenticateJWT, userController.getUserFullInfo);
 

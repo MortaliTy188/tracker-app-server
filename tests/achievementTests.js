@@ -3,7 +3,7 @@ const { Achievement, UserAchievement, User, sequelize } = require("../models");
 const AchievementManager = require("../utils/achievementManager");
 const DatabaseCleaner = require("../utils/databaseCleaner");
 const testData = require("./testData");
-const { initializeAchievements } = require("../initializeAchievements");
+const initializeAchievements = require("../setup/initializeAchievements");
 
 /**
  * Комплексные тесты системы достижений

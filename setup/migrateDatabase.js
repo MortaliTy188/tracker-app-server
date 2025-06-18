@@ -1,5 +1,5 @@
 // Скрипт для безопасного обновления базы данных
-const { sequelize, User } = require("./models");
+const { sequelize, User } = require("../models");
 
 async function migrateDatabase() {
   try {

@@ -6,7 +6,7 @@ const path = require("path");
 
 // Импорт моделей и синхронизация БД
 const { sequelize } = require("./models");
-const syncDatabase = require("./syncDatabase");
+const syncDatabase = require("./setup/syncDatabase");
 
 // Импорт конфигурации Swagger
 const swaggerSpec = require("./config/swagger");
@@ -20,6 +20,7 @@ const noteRoutes = require("./routes/noteRoutes");
 const topicStatusRoutes = require("./routes/topicStatusRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const achievementRoutes = require("./routes/achievementRoutes");
+const activityRoutes = require("./routes/activityRoutes");
 
 // Импорт middleware
 const {
@@ -85,6 +86,7 @@ app.get("/", (req, res) => {
       notes: "/api/notes",
       statuses: "/api/statuses",
       feedback: "/api/feedback",
+      activity: "/api/activity",
       swagger: "/api-docs",
       health: "/health",
     },
@@ -126,6 +128,7 @@ app.use("/api/notes", noteRoutes);
 app.use("/api/statuses", topicStatusRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/achievements", achievementRoutes);
+app.use("/api/activity", activityRoutes);
 
 // Middleware для обработки несуществующих маршрутов
 app.use(notFoundHandler);

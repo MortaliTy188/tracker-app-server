@@ -8,6 +8,7 @@ const {
 } = require("../models");
 const { Op } = require("sequelize");
 const AchievementManager = require("../utils/achievementManager");
+const ActivityLogger = require("../utils/activityLogger");
 
 class SkillController {
   // Создать новый навык
@@ -48,15 +49,16 @@ class SkillController {
           success: false,
           message: "Навык с таким названием уже существует",
         });
-      }
-
-      // Создание навыка
+      } // Создание навыка
       const skill = await Skill.create({
         name: name.trim(),
         description: description ? description.trim() : null,
         user_id: userId,
         category_id: category_id || null,
       });
+
+      // Логирование создания навыка
+      await ActivityLogger.logSkillCreated(userId, skill, req);
 
       // Получение созданного навыка с категорией
       const createdSkill = await Skill.findByPk(skill.id, {
@@ -322,8 +324,15 @@ class SkillController {
       if (description !== undefined)
         updateData.description = description ? description.trim() : null;
       if (category_id !== undefined) updateData.category_id = category_id;
-
       await skill.update(updateData);
+
+      // Логирование обновления навыка
+      await ActivityLogger.logSkillUpdated(
+        userId,
+        skill,
+        Object.keys(updateData),
+        req
+      );
 
       // Получение обновленного навыка
       const updatedSkill = await Skill.findByPk(id, {
@@ -362,13 +371,15 @@ class SkillController {
           user_id: userId,
         },
       });
-
       if (!skill) {
         return res.status(404).json({
           success: false,
           message: "Навык не найден",
         });
       }
+
+      // Логирование удаления навыка (сохраняем данные до удаления)
+      await ActivityLogger.logSkillDeleted(userId, skill, req);
 
       // Удаление навыка (каскадно удалятся связанные темы и заметки)
       await skill.destroy();

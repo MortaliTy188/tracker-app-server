@@ -2,6 +2,7 @@ const { Topic, TopicStatus, Skill, Note, User } = require("../models");
 const { Op } = require("sequelize");
 const { updateUserLevel } = require("../utils/levelCalculator");
 const AchievementManager = require("../utils/achievementManager");
+const ActivityLogger = require("../utils/activityLogger");
 
 class TopicController {
   async createTopic(req, res) {
@@ -84,9 +85,7 @@ class TopicController {
             attributes: ["id", "name"],
           },
         ],
-      });
-
-      // Проверяем достижения после создания топика
+      }); // Проверяем достижения после создания топика
       try {
         await AchievementManager.checkAchievements(userId, "topic_created", {
           topicId: topic.id,
@@ -99,6 +98,9 @@ class TopicController {
           achievementError
         );
       }
+
+      // Логирование создания топика
+      await ActivityLogger.logTopicCreated(userId, createdTopic, req);
 
       res.status(201).json({
         success: true,
@@ -309,26 +311,46 @@ class TopicController {
             id: { [Op.ne]: id },
           },
         });
-
         if (existingTopic) {
           return res.status(409).json({
             success: false,
             message: "Тема с таким названием уже существует в данном навыке",
           });
         }
-      } // Обновление данных
-      const updateData = {};
-      const oldProgress = topic.progress;
-      if (name) updateData.name = name.trim();
-      if (description !== undefined)
-        updateData.description = description ? description.trim() : null;
-      if (status_id !== undefined) updateData.status_id = status_id;
-      if (progress !== undefined)
-        updateData.progress = Math.max(0, Math.min(100, progress));
-      if (estimated_hours !== undefined)
-        updateData.estimated_hours = estimated_hours;
+      }
 
-      await topic.update(updateData); // Обновляем уровень пользователя если прогресс изменился и топик завершен/не завершен
+      // Обновление данных
+      const updateData = {};
+      const changedFields = [];
+      const oldProgress = topic.progress;
+
+      if (name && name !== topic.name) {
+        updateData.name = name.trim();
+        changedFields.push("name");
+      }
+      if (description !== undefined && description !== topic.description) {
+        updateData.description = description ? description.trim() : null;
+        changedFields.push("description");
+      }
+      if (status_id !== undefined && status_id !== topic.status_id) {
+        updateData.status_id = status_id;
+        changedFields.push("status_id");
+      }
+      if (progress !== undefined && progress !== topic.progress) {
+        updateData.progress = Math.max(0, Math.min(100, progress));
+        changedFields.push("progress");
+      }
+      if (
+        estimated_hours !== undefined &&
+        estimated_hours !== topic.estimated_hours
+      ) {
+        updateData.estimated_hours = estimated_hours;
+        changedFields.push("estimated_hours");
+      }
+
+      await topic.update(updateData);
+
+      // Обновляем уровень пользователя если прогресс изменился и топик завершен/не завершен
       let levelInfo = null;
       if (
         progress !== undefined &&
@@ -377,6 +399,21 @@ class TopicController {
           },
         ],
       });
+
+      // Логирование обновления топика
+      if (changedFields.length > 0) {
+        await ActivityLogger.logTopicUpdated(
+          userId,
+          updatedTopic,
+          changedFields,
+          req
+        );
+      }
+
+      // Проверка на завершение топика
+      if (progress === 100 && oldProgress !== 100) {
+        await ActivityLogger.logTopicCompleted(userId, updatedTopic, req);
+      }
 
       res.json({
         success: true,

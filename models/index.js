@@ -10,6 +10,7 @@ const Note = require("./noteModel");
 const Feedback = require("./feedbackModel");
 const Achievement = require("./achievementModel");
 const UserAchievement = require("./userAchievementModel");
+const ActivityLog = require("./activityLogModel");
 
 // Определение связей между моделями
 
@@ -83,6 +84,16 @@ UserAchievement.belongsTo(Achievement, {
   as: "achievement",
 });
 
+// User -> ActivityLog (один пользователь может иметь много записей в логе активности)
+User.hasMany(ActivityLog, {
+  foreignKey: "user_id",
+  as: "activityLogs",
+});
+ActivityLog.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
 module.exports = {
   sequelize,
   User,
@@ -94,4 +105,5 @@ module.exports = {
   Feedback,
   Achievement,
   UserAchievement,
+  ActivityLog,
 };

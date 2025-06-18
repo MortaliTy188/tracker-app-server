@@ -1,5 +1,5 @@
-const { User } = require("./models");
-const { updateUserLevel } = require("./utils/levelCalculator");
+const { User } = require("../models");
+const { updateUserLevel } = require("../utils/levelCalculator");
 
 /**
  * Скрипт для пересчета уровней всех существующих пользователей
