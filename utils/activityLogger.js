@@ -143,46 +143,56 @@ class ActivityLogger {
       },
       req
     );
-  } // Методы для топиков
+  }
+
+  // Методы для топиков
   static async logTopicCreated(userId, topicData, req) {
     return this.log(
       userId,
       "TOPIC_CREATED",
       {
         topicId: topicData.id,
-        topicTitle: topicData.title,
+        topicTitle: topicData.name, // Исправлено: используем name вместо title
         skillId: topicData.skill_id,
+        skillName: topicData.skill?.name || null, // Добавляем название навыка
+        description: topicData.description,
+        progress: topicData.progress,
+        estimatedHours: topicData.estimated_hours,
       },
       req
     );
   }
-
   static async logTopicCompleted(userId, topicData, req) {
     return this.log(
       userId,
       "TOPIC_COMPLETED",
       {
         topicId: topicData.id,
-        topicTitle: topicData.title,
+        topicTitle: topicData.name, // Исправлено: используем name вместо title
         skillId: topicData.skill_id,
+        skillName: topicData.skill?.name || null, // Добавляем название навыка
+        progress: topicData.progress,
         completedAt: new Date(),
       },
       req
     );
   }
-
   static async logTopicUpdated(userId, topicData, changedFields, req) {
     return this.log(
       userId,
       "TOPIC_UPDATED",
       {
         topicId: topicData.id,
-        topicTitle: topicData.title,
+        topicTitle: topicData.name, // Исправлено: используем name вместо title
+        skillId: topicData.skill_id,
+        skillName: topicData.skill?.name || null, // Добавляем название навыка
         changedFields,
       },
       req
     );
-  } // Методы для заметок
+  }
+
+  // Методы для заметок
   static async logNoteCreated(userId, noteData, req) {
     return this.log(
       userId,
