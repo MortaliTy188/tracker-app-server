@@ -449,24 +449,22 @@ class AchievementManager {
         case "Первопроходец":
           // Проверяем, входит ли пользователь в первые 100
           // Если ID пользователя <= 100, то он точно один из первых 100
-          return userId <= 100 ? 100 : 0;
-
-        // Достижения по опыту
+          return userId <= 100 ? 100 : 0; // Достижения по опыту
         case "Студент":
           const totalPoints1 = await this.getUserTotalPoints(userId);
-          return totalPoints1 >= 100 ? 1 : 0;
+          return totalPoints1 >= 100 ? 100 : totalPoints1;
 
         case "Бакалавр":
           const totalPoints2 = await this.getUserTotalPoints(userId);
-          return totalPoints2 >= 500 ? 1 : 0;
+          return totalPoints2 >= 500 ? 500 : totalPoints2;
 
         case "Магистр":
           const totalPoints3 = await this.getUserTotalPoints(userId);
-          return totalPoints3 >= 1000 ? 1 : 0;
+          return totalPoints3 >= 1000 ? 1000 : totalPoints3;
 
         case "Доктор наук":
           const totalPoints4 = await this.getUserTotalPoints(userId);
-          return totalPoints4 >= 2500 ? 1 : 0;
+          return totalPoints4 >= 2500 ? 2500 : totalPoints4;
 
         default:
           return 0;
@@ -476,16 +474,77 @@ class AchievementManager {
       return 0;
     }
   }
-
   /**
    * Получает количество дней подряд активности
    */
   static async getStreakDays(userId) {
     try {
-      // Здесь должна быть логика подсчета стриков
-      // Пока возвращаем 0, но нужно реализовать
-      // подсчет последовательных дней активности
-      return 0;
+      const { ActivityLog } = require("../models");
+
+      // Получаем все дни активности пользователя (исключая LOGIN/LOGOUT)
+      // Группируем по дням и считаем только дни с продуктивной активностью
+      const activityDays = await ActivityLog.findAll({
+        where: {
+          user_id: userId,
+          action: {
+            [Op.notIn]: ["LOGIN", "LOGOUT"], // Исключаем логин/логаут из активности
+          },
+        },
+        attributes: [
+          [
+            require("sequelize").fn(
+              "DATE",
+              require("sequelize").col("created_at")
+            ),
+            "activity_date",
+          ],
+        ],
+        group: [
+          require("sequelize").fn(
+            "DATE",
+            require("sequelize").col("created_at")
+          ),
+        ],
+        order: [
+          [
+            require("sequelize").fn(
+              "DATE",
+              require("sequelize").col("created_at")
+            ),
+            "DESC",
+          ],
+        ],
+        raw: true,
+      });
+
+      if (activityDays.length === 0) {
+        return 0;
+      }
+
+      // Подсчитываем стрик с сегодняшнего дня назад
+      let streakCount = 0;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Обнуляем время для корректного сравнения дат
+
+      for (let i = 0; i < activityDays.length; i++) {
+        const activityDate = new Date(activityDays[i].activity_date);
+        activityDate.setHours(0, 0, 0, 0);
+
+        // Вычисляем ожидаемую дату для текущего дня стрика
+        const expectedDate = new Date(today);
+        expectedDate.setDate(today.getDate() - streakCount);
+
+        // Если дата активности совпадает с ожидаемой датой, увеличиваем стрик
+        if (activityDate.getTime() === expectedDate.getTime()) {
+          streakCount++;
+        } else if (activityDate.getTime() < expectedDate.getTime()) {
+          // Если дата активности старше ожидаемой, стрик прерван
+          break;
+        }
+        // Если дата активности новее ожидаемой, пропускаем (может быть несколько записей в один день)
+      }
+
+      return streakCount;
     } catch (error) {
       console.error("Ошибка при подсчете стриков:", error);
       return 0;
