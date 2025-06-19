@@ -1129,13 +1129,11 @@ node tests/avatarTests.js                  # Тесты аватаров
 
 ### Команды для отладки
 
-```bash
-# Отладка достижений
-node debug_achievement.js                   # Отладочный скрипт достижений
-
 # Работа с файлами
-ls uploads/avatars/                         # Просмотр загруженных аватаров
-```
+
+ls uploads/avatars/ # Просмотр загруженных аватаров
+
+````
 
 ### Переменные окружения
 
@@ -1155,7 +1153,7 @@ JWT_SECRET=your_secret_key                 # Секретный ключ для 
 
 # Настройка CORS
 FRONTEND_URL=http://localhost:3001         # URL фронтенда
-```
+````
 
 ---
 
@@ -1194,7 +1192,7 @@ FRONTEND_URL=http://localhost:3001         # URL фронтенда
 
 **Автор:** Kirill Shamanaev  
 **Лицензия:** ISC  
-**Версия:** 1.5.3
+**Версия:** 1.5.4
 
 ---
 
