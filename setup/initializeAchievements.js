@@ -122,15 +122,6 @@ async function initializeAchievements() {
 
       // Достижения за создание навыков
       {
-        name: "Новые горизонты",
-        description: "Создайте свой первый навык",
-        icon: "🎨",
-        type: "skills_created",
-        condition_value: 1,
-        points: 15,
-        rarity: "common",
-      },
-      {
         name: "Многогранность",
         description: "Создайте 5 навыков",
         icon: "🎭",
@@ -244,16 +235,7 @@ async function initializeAchievements() {
         points: 10,
         rarity: "common",
       },
-      {
-        name: "Первая заметка",
-        description: "Создайте свою первую заметку",
-        icon: "📝",
-        type: "first_action",
-        condition_value: 1,
-        condition_data: { action_type: "first_note" },
-        points: 5,
-        rarity: "common",
-      }, // Достижения за уровни
+      // Достижения за уровни
       {
         name: "Начинающий",
         description: "Достигните 2 уровня",
@@ -266,7 +248,7 @@ async function initializeAchievements() {
       {
         name: "Первый уровень",
         description: "Достигните 5 уровня",
-        icon: "�",
+        icon: "⭐",
         type: "level_reached",
         condition_value: 5,
         points: 25,
@@ -275,7 +257,7 @@ async function initializeAchievements() {
       {
         name: "Двузначный уровень",
         description: "Достигните 10 уровня",
-        icon: "�",
+        icon: "🏔️",
         type: "level_reached",
         condition_value: 10,
         points: 50,
@@ -284,7 +266,7 @@ async function initializeAchievements() {
       {
         name: "Высота цели",
         description: "Достигните 25 уровня",
-        icon: "�️",
+        icon: "🎉",
         type: "level_reached",
         condition_value: 25,
         points: 125,
@@ -293,7 +275,7 @@ async function initializeAchievements() {
       {
         name: "Вершина мастерства",
         description: "Достигните 50 уровня",
-        icon: "🏔️",
+        icon: "👨‍🎓",
         type: "level_reached",
         condition_value: 50,
         points: 300,

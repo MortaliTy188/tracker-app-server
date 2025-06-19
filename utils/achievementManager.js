@@ -8,6 +8,7 @@ const {
   SkillCategory,
 } = require("../models");
 const { Op } = require("sequelize");
+const ActivityLogger = require("./activityLogger");
 
 /**
  * Утилита для управления системой достижений
@@ -85,13 +86,29 @@ class AchievementManager {
           shouldComplete && !wasCompleted
             ? new Date()
             : userAchievement.completed_at,
-      });
-
-      // Если достижение только что получено, выводим уведомление
+      }); // Если достижение только что получено, выводим уведомление
       if (shouldComplete && !wasCompleted) {
         console.log(
           `🎉 Пользователь ${userId} получил достижение: ${achievement.name}!`
         );
+
+        // Логируем получение достижения
+        try {
+          await ActivityLogger.logAchievementEarned(userId, {
+            id: achievement.id,
+            title: achievement.name,
+            type: achievement.type,
+          });
+          console.log(
+            `📝 Логирована активность получения достижения: ${achievement.name}`
+          );
+        } catch (logError) {
+          console.error(
+            `Ошибка логирования достижения ${achievement.name}:`,
+            logError
+          );
+        }
+
         return {
           achieved: true,
           achievement: achievement,

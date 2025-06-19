@@ -417,11 +417,13 @@ class UserController {
 
       const saltRounds = 10;
       const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
       await User.update(
         { password: hashedNewPassword },
         { where: { id: userId } }
       );
+
+      // Логируем активность смены пароля
+      await ActivityLogger.logPasswordChange(userId, req);
 
       res.json({
         success: true,
