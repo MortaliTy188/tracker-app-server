@@ -101,33 +101,59 @@ async function getUserProgressStats(userId) {
     const completedTopicsCount = await getCompletedTopicsCount(userId);
     const level = calculateUserLevel(completedTopicsCount);
 
+    // Получаем общее количество навыков пользователя
+    const totalSkills = await Skill.count({
+      where: { user_id: userId },
+    });
+
+    // Получаем общее количество топиков пользователя
+    const totalTopics = await Topic.count({
+      include: [
+        {
+          model: Skill,
+          as: "skill",
+          where: { user_id: userId },
+          attributes: [],
+        },
+      ],
+    });
+
     // Определяем следующий уровень и количество топиков до него
     let nextLevel = null;
     let topicsToNextLevel = 0;
 
     if (completedTopicsCount < 5) {
-      nextLevel = "Средний";
+      nextLevel = "базовый";
       topicsToNextLevel = 5 - completedTopicsCount;
     } else if (completedTopicsCount < 20) {
-      nextLevel = "Продвинутый";
+      nextLevel = "продвинутый";
       topicsToNextLevel = 20 - completedTopicsCount;
     } else if (completedTopicsCount < 50) {
-      nextLevel = "Профессионал";
+      nextLevel = "продвинутый";
       topicsToNextLevel = 50 - completedTopicsCount;
     } else if (completedTopicsCount < 100) {
-      nextLevel = "Эксперт";
+      nextLevel = "эксперт";
       topicsToNextLevel = 100 - completedTopicsCount;
     }
 
     return {
       currentLevel: level,
       completedTopics: completedTopicsCount,
+      totalTopics: totalTopics,
+      totalSkills: totalSkills,
       nextLevel,
       topicsToNextLevel,
     };
   } catch (error) {
     console.error("Ошибка при получении статистики прогресса:", error);
-    throw error;
+    return {
+      currentLevel: "новичок",
+      completedTopics: 0,
+      totalTopics: 0,
+      totalSkills: 0,
+      nextLevel: "базовый",
+      topicsToNextLevel: 5,
+    };
   }
 }
 

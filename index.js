@@ -21,6 +21,7 @@ const topicStatusRoutes = require("./routes/topicStatusRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const achievementRoutes = require("./routes/achievementRoutes");
 const activityRoutes = require("./routes/activityRoutes");
+const friendshipRoutes = require("./routes/friendshipRoutes");
 
 // Импорт middleware
 const {
@@ -129,6 +130,7 @@ app.use("/api/statuses", topicStatusRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/achievements", achievementRoutes);
 app.use("/api/activity", activityRoutes);
+app.use("/api/friendship", friendshipRoutes);
 
 // Middleware для обработки несуществующих маршрутов
 app.use(notFoundHandler);

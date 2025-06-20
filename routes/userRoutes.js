@@ -4,6 +4,7 @@ const { uploadAvatar, processAvatar } = require("../middlewares/imageUpload");
 const userController = require("../controllers/userController");
 const authenticateJWT = require("../middlewares/authMiddleware");
 const authMiddleware = require("../middlewares/authMiddleware");
+const optionalAuth = require("../middlewares/optionalAuth");
 
 /**
  * @swagger
@@ -41,6 +42,10 @@ const authMiddleware = require("../middlewares/authMiddleware");
  *           type: string
  *           format: date-time
  *           description: Дата регистрации пользователя
+ *         isPrivate:
+ *           type: boolean
+ *           description: Приватность профиля (true - приватный, false - публичный)
+ *           default: false
  *       example:
  *         id: 1
  *         name: "Иван Иванов"
@@ -48,6 +53,7 @@ const authMiddleware = require("../middlewares/authMiddleware");
  *         avatar: "/uploads/avatars/avatar-1-123456789.webp"
  *         level: "Новичок"
  *         registrationDate: "2024-01-15T10:30:00Z"
+ *         isPrivate: false
  *
  *     AuthResponse:
  *       type: object
@@ -588,5 +594,213 @@ router.post(
   authMiddleware,
   userController.recalculateLevel
 );
+
+/**
+ * @swagger
+ * /api/users/privacy:
+ *   put:
+ *     summary: Обновить настройки приватности профиля
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - isPrivate
+ *             properties:
+ *               isPrivate:
+ *                 type: boolean
+ *                 description: Сделать профиль приватным (true) или публичным (false)
+ *             example:
+ *               isPrivate: true
+ *     responses:
+ *       200:
+ *         description: Настройки приватности успешно обновлены
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Неверные данные
+ *       401:
+ *         description: Не авторизован
+ */
+router.put("/privacy", authMiddleware, userController.updatePrivacySettings);
+
+/**
+ * @swagger
+ * /api/users/public/{userId}:
+ *   get:
+ *     summary: Получить публичный профиль пользователя
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID пользователя
+ *     responses:
+ *       200:
+ *         description: Публичный профиль пользователя
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                         name:
+ *                           type: string
+ *                         avatar:
+ *                           type: string
+ *                         level:
+ *                           type: string
+ *                         registrationDate:
+ *                           type: string
+ *                     stats:
+ *                       type: object
+ *                       properties:
+ *                         achievements:
+ *                           type: object
+ *                         progress:
+ *                           type: object
+ *                     isPrivate:
+ *                       type: boolean
+ *                     message:
+ *                       type: string
+ *                       description: Сообщение для приватных профилей
+ *       404:
+ *         description: Пользователь не найден
+ */
+router.get("/public/:userId", userController.getPublicProfile);
+
+/**
+ * @swagger
+ * /api/users/all:
+ *   get:
+ *     summary: Получить список всех пользователей с краткой статистикой
+ *     tags: [Users]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Номер страницы
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Количество пользователей на странице
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Поиск по имени пользователя
+ *     responses:
+ *       200:
+ *         description: Список пользователей с краткой статистикой
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     users:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           name:
+ *                             type: string
+ *                           avatar:
+ *                             type: string
+ *                           level:
+ *                             type: string
+ *                           registrationDate:
+ *                             type: string
+ *                           isPrivate:
+ *                             type: boolean
+ *                           stats:
+ *                             type: object
+ *                             properties:
+ *                               achievements:
+ *                                 type: object
+ *                                 properties:
+ *                                   completed:
+ *                                     type: integer
+ *                                   total:
+ *                                     type: integer
+ *                                   points:
+ *                                     type: integer
+ *                               progress:
+ *                                 type: object
+ *                                 properties:
+ *                                   totalSkills:
+ *                                     type: integer
+ *                                   totalTopics:
+ *                                     type: integer
+ *                                   completedTopics:
+ *                                     type: integer
+ *                                   completionPercentage:
+ *                                     type: integer
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         currentPage:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                         totalUsers:
+ *                           type: integer
+ *                         usersPerPage:
+ *                           type: integer
+ *                         hasNextPage:
+ *                           type: boolean
+ *                         hasPrevPage:
+ *                           type: boolean
+ *                     summary:
+ *                       type: object
+ *                       properties:
+ *                         totalUsers:
+ *                           type: integer
+ *                         publicUsers:
+ *                           type: integer
+ *                         privateUsers:
+ *                           type: integer
+ */
+router.get("/all", optionalAuth, userController.getAllUsers);
 
 module.exports = router;

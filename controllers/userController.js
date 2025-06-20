@@ -288,6 +288,7 @@ class UserController {
           "avatar",
           "level",
           "registrationDate",
+          "isPrivate",
         ], // Исключаем пароль
       });
 
@@ -431,6 +432,150 @@ class UserController {
       });
     } catch (error) {
       console.error("Ошибка смены пароля:", error);
+      res.status(500).json({
+        success: false,
+        message: "Внутренняя ошибка сервера",
+        error: error.message,
+      });
+    }
+  }
+
+  async updatePrivacySettings(req, res) {
+    try {
+      const userId = req.user.id;
+      const { isPrivate } = req.body;
+
+      // Валидация входных данных
+      if (typeof isPrivate !== "boolean") {
+        return res.status(400).json({
+          success: false,
+          message: "isPrivate должно быть булевым значением",
+        });
+      }
+
+      // Обновляем настройки приватности
+      await User.update({ isPrivate }, { where: { id: userId } });
+
+      // Получаем обновленного пользователя
+      const updatedUser = await User.findByPk(userId, {
+        attributes: [
+          "id",
+          "name",
+          "email",
+          "avatar",
+          "level",
+          "registrationDate",
+          "isPrivate",
+        ],
+      });
+
+      res.json({
+        success: true,
+        message: `Профиль ${
+          isPrivate ? "скрыт" : "открыт"
+        } для других пользователей`,
+        data: { user: updatedUser },
+      });
+    } catch (error) {
+      console.error("Ошибка обновления настроек приватности:", error);
+      res.status(500).json({
+        success: false,
+        message: "Внутренняя ошибка сервера",
+        error: error.message,
+      });
+    }
+  }
+
+  async getPublicProfile(req, res) {
+    try {
+      const { userId } = req.params;
+      const requesterId = req.user?.id; // ID пользователя, который запрашивает
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "ID пользователя обязателен",
+        });
+      }
+
+      // Находим пользователя
+      const user = await User.findByPk(userId, {
+        attributes: [
+          "id",
+          "name",
+          "avatar",
+          "level",
+          "registrationDate",
+          "isPrivate",
+        ],
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Пользователь не найден",
+        });
+      }
+
+      // Если это тот же пользователь, показываем полную информацию
+      if (requesterId && requesterId.toString() === userId.toString()) {
+        const fullUser = await User.findByPk(userId, {
+          attributes: [
+            "id",
+            "name",
+            "email",
+            "avatar",
+            "level",
+            "registrationDate",
+            "isPrivate",
+          ],
+        });
+
+        return res.json({
+          success: true,
+          data: { user: fullUser, isOwnProfile: true },
+        });
+      }
+
+      // Если профиль приватный, показываем ограниченную информацию
+      if (user.isPrivate) {
+        return res.json({
+          success: true,
+          data: {
+            user: {
+              id: user.id,
+              name: user.name,
+              avatar: user.avatar,
+              isPrivate: true,
+            },
+            isPrivate: true,
+            message: "Этот профиль скрыт пользователем",
+          },
+        });
+      }
+
+      // Получаем публичную статистику для открытых профилей
+      const achievements = await AchievementManager.getUserAchievementStats(
+        userId
+      );
+      const progressStats = await getUserProgressStats(userId);
+
+      // Удаляем поле isPrivate из публичного ответа
+      const { isPrivate, ...publicUser } = user.toJSON();
+
+      res.json({
+        success: true,
+        data: {
+          user: publicUser,
+          stats: {
+            achievements: achievements,
+            progress: progressStats,
+          },
+          isPrivate: false,
+        },
+      });
+    } catch (error) {
+      console.error("Ошибка получения публичного профиля:", error);
       res.status(500).json({
         success: false,
         message: "Внутренняя ошибка сервера",
@@ -637,6 +782,214 @@ class UserController {
       });
     } catch (error) {
       console.error("Ошибка пересчета уровня:", error);
+      res.status(500).json({
+        success: false,
+        message: "Внутренняя ошибка сервера",
+        error: error.message,
+      });
+    }
+  }
+  async getAllUsers(req, res) {
+    try {
+      const currentUserId = req.user ? req.user.id : null;
+      const { page = 1, limit = 20, search = "" } = req.query;
+      const offset = (page - 1) * limit; // Условие поиска
+      const whereCondition = {};
+
+      if (search) {
+        whereCondition.name = {
+          [require("sequelize").Op.iLike]: `%${search}%`,
+        };
+      }
+
+      // Исключаем текущего пользователя из списка, если он авторизован
+      if (currentUserId) {
+        whereCondition.id = {
+          [require("sequelize").Op.ne]: currentUserId,
+        };
+      }
+
+      // Получаем пользователей с пагинацией
+      const { count, rows: users } = await User.findAndCountAll({
+        where: whereCondition,
+        attributes: [
+          "id",
+          "name",
+          "avatar",
+          "level",
+          "registrationDate",
+          "isPrivate",
+        ],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        order: [["registrationDate", "DESC"]],
+      });
+
+      // Если пользователь авторизован, получаем информацию о дружбе
+      let friendshipStatuses = {};
+      if (currentUserId) {
+        const Friendship = require("../models/friendshipModel");
+        const { Op } = require("sequelize");
+
+        const friendships = await Friendship.findAll({
+          where: {
+            [Op.or]: [
+              { requester_id: currentUserId },
+              { addressee_id: currentUserId },
+            ],
+          },
+        });
+
+        // Создаем мапу статусов дружбы
+        friendships.forEach((friendship) => {
+          const otherUserId =
+            friendship.requester_id === currentUserId
+              ? friendship.addressee_id
+              : friendship.requester_id;
+
+          let status = friendship.status;
+          if (status === "pending") {
+            status =
+              friendship.addressee_id === currentUserId
+                ? "received_request"
+                : "sent_request";
+          }
+
+          friendshipStatuses[otherUserId] = {
+            status,
+            friendshipId: friendship.id,
+          };
+        });
+      }
+
+      // Получаем статистику для каждого пользователя
+      const usersWithStats = await Promise.all(
+        users.map(async (user) => {
+          try {
+            // Определяем статус дружбы
+            let friendshipStatus = "none";
+            let friendshipId = null;
+
+            if (currentUserId && friendshipStatuses[user.id]) {
+              friendshipStatus = friendshipStatuses[user.id].status;
+              friendshipId = friendshipStatuses[user.id].friendshipId;
+              console.log(`Установлен статус дружбы: ${friendshipStatus}`);
+            }
+
+            // Для приватных профилей не показываем детальную статистику
+            if (user.isPrivate) {
+              return {
+                id: user.id,
+                name: user.name,
+                avatar: user.avatar,
+                level: user.level,
+                registrationDate: user.registrationDate,
+                isPrivate: true,
+                friendship: {
+                  status: friendshipStatus,
+                  friendshipId,
+                },
+                stats: {
+                  message: "Статистика скрыта пользователем",
+                },
+              };
+            }
+
+            // Получаем статистику достижений
+            const achievementStats =
+              await AchievementManager.getUserAchievementStats(user.id);
+
+            // Получаем статистику прогресса
+            const progressStats = await getUserProgressStats(user.id);
+
+            return {
+              id: user.id,
+              name: user.name,
+              avatar: user.avatar,
+              level: user.level,
+              registrationDate: user.registrationDate,
+              isPrivate: false,
+              friendship: {
+                status: friendshipStatus,
+                friendshipId,
+              },
+              stats: {
+                achievements: {
+                  completed: achievementStats.completed,
+                  total: achievementStats.total,
+                  points: achievementStats.points,
+                },
+                progress: {
+                  totalSkills: progressStats.totalSkills,
+                  totalTopics: progressStats.totalTopics,
+                  completedTopics: progressStats.completedTopics,
+                  completionPercentage:
+                    progressStats.totalTopics > 0
+                      ? Math.round(
+                          (progressStats.completedTopics /
+                            progressStats.totalTopics) *
+                            100
+                        )
+                      : 0,
+                },
+              },
+            };
+          } catch (error) {
+            console.error(
+              `Ошибка получения статистики для пользователя ${user.id}:`,
+              error
+            );
+            // Возвращаем базовую информацию при ошибке
+            return {
+              id: user.id,
+              name: user.name,
+              avatar: user.avatar,
+              level: user.level,
+              registrationDate: user.registrationDate,
+              isPrivate: user.isPrivate,
+              friendship: {
+                status: "none",
+                friendshipId: null,
+              },
+              stats: {
+                error: "Не удалось загрузить статистику",
+              },
+            };
+          }
+        })
+      );
+
+      // Подсчитываем общую статистику
+      const totalPages = Math.ceil(count / limit);
+      const publicUsersCount = usersWithStats.filter(
+        (u) => !u.isPrivate
+      ).length;
+      const privateUsersCount = usersWithStats.filter(
+        (u) => u.isPrivate
+      ).length;
+
+      res.json({
+        success: true,
+        message: "Список пользователей получен",
+        data: {
+          users: usersWithStats,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            totalUsers: count,
+            usersPerPage: parseInt(limit),
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+          },
+          summary: {
+            totalUsers: count,
+            publicUsers: publicUsersCount,
+            privateUsers: privateUsersCount,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Ошибка получения списка пользователей:", error);
       res.status(500).json({
         success: false,
         message: "Внутренняя ошибка сервера",

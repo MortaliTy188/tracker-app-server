@@ -14,6 +14,7 @@ const avatarTests = require("./avatarTests");
 const FeedbackTests = require("./feedbackTests");
 const AchievementTests = require("./achievementTests");
 const activityTests = require("./activityTests");
+const friendshipTests = require("./friendshipTests");
 
 class TestRunner {
   constructor() {
@@ -186,9 +187,7 @@ class TestRunner {
       await this.runFeedbackTests(); // 12. Тесты системы достижений
       console.log("\n🏆 Тестирование системы достижений");
       console.log("==================================");
-      await this.runAchievementTests();
-
-      // 13. Тесты системы активности
+      await this.runAchievementTests(); // 13. Тесты системы активности
       if (token) {
         console.log("\n📊 Тестирование системы активности");
         console.log("==================================");
@@ -198,6 +197,11 @@ class TestRunner {
           "\n⚠️ Пропускаем тесты активности - нет токена авторизации"
         );
       }
+
+      // 14. Тесты системы друзей
+      console.log("\n🤝 Тестирование системы друзей");
+      console.log("===============================");
+      await this.runFriendshipTests();
 
       // Отчет о результатах
       this.printTestResults();
@@ -381,7 +385,6 @@ class TestRunner {
       return false;
     }
   }
-
   // Запуск тестов системы активности
   async runActivityTests(token) {
     try {
@@ -407,6 +410,23 @@ class TestRunner {
     } catch (error) {
       console.error("❌ Ошибка в тестах активности:", error.message);
       this.recordTestResult("Система активности", false, error.message);
+      return false;
+    }
+  }
+
+  // Запуск тестов системы друзей
+  async runFriendshipTests() {
+    try {
+      console.log("\n🤝 Запуск тестов системы друзей...");
+      console.log("=====================================");
+
+      await friendshipTests.runFriendshipTests();
+      this.recordTestResult("Система друзей", true, "Все тесты прошли успешно");
+
+      return true;
+    } catch (error) {
+      console.error("❌ Ошибка в тестах системы друзей:", error.message);
+      this.recordTestResult("Система друзей", false, error.message);
       return false;
     }
   }
