@@ -29,6 +29,10 @@ const Achievement = sequelize.define(
         "progress_milestone", // За достижение определенного процента прогресса
         "time_spent", // За время, проведенное в обучении
         "first_action", // За первые действия
+        "friends_added", // За добавление друзей
+        "friend_requests_received", // За получение запросов на дружбу
+        "friend_requests_sent", // За отправку запросов на дружбу
+        "friendship_duration", // За длительность дружбы
         "special" // Специальные достижения
       ),
       allowNull: false,

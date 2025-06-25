@@ -6,6 +6,7 @@ const {
   Skill,
   Note,
   SkillCategory,
+  Friendship,
 } = require("../models");
 const { Op } = require("sequelize");
 const ActivityLogger = require("./activityLogger");
@@ -162,6 +163,18 @@ class AchievementManager {
 
         case "streak_days":
           return await this.getStreakDays(userId);
+
+        case "friends_added":
+          return await this.getFriendsCount(userId);
+
+        case "friend_requests_received":
+          return await this.getReceivedRequestsCount(userId);
+
+        case "friend_requests_sent":
+          return await this.getSentRequestsCount(userId);
+
+        case "friendship_duration":
+          return await this.getLongestFriendshipDuration(userId);
 
         default:
           return 0;
@@ -614,6 +627,99 @@ class AchievementManager {
       return totalPoints || 0;
     } catch (error) {
       console.error("Ошибка при получении общих очков:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество друзей пользователя
+   */
+  static async getFriendsCount(userId) {
+    try {
+      const friendsCount = await Friendship.count({
+        where: {
+          [Op.or]: [{ requester_id: userId }, { addressee_id: userId }],
+          status: "accepted",
+        },
+      });
+      return friendsCount;
+    } catch (error) {
+      console.error("Ошибка при получении количества друзей:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество полученных запросов на дружбу
+   */
+  static async getReceivedRequestsCount(userId) {
+    try {
+      const requestsCount = await Friendship.count({
+        where: {
+          addressee_id: userId,
+          status: ["pending", "accepted"], // Считаем и ожидающие, и принятые
+        },
+      });
+      return requestsCount;
+    } catch (error) {
+      console.error(
+        "Ошибка при получении количества полученных запросов:",
+        error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество отправленных запросов на дружбу
+   */
+  static async getSentRequestsCount(userId) {
+    try {
+      const requestsCount = await Friendship.count({
+        where: {
+          requester_id: userId,
+          status: ["pending", "accepted", "declined"], // Считаем все отправленные запросы
+        },
+      });
+      return requestsCount;
+    } catch (error) {
+      console.error(
+        "Ошибка при получении количества отправленных запросов:",
+        error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Получает длительность самой долгой дружбы в днях
+   */
+  static async getLongestFriendshipDuration(userId) {
+    try {
+      const friendships = await Friendship.findAll({
+        where: {
+          [Op.or]: [{ requester_id: userId }, { addressee_id: userId }],
+          status: "accepted",
+        },
+        order: [["updated_at", "ASC"]], // Сортируем по дате принятия запроса
+      });
+
+      if (friendships.length === 0) {
+        return 0;
+      }
+
+      // Находим самую давнюю дружбу
+      const oldestFriendship = friendships[0];
+      const friendshipStartDate = new Date(oldestFriendship.updated_at);
+      const now = new Date();
+
+      // Вычисляем разность в днях
+      const diffInMs = now - friendshipStartDate;
+      const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+      return Math.max(diffInDays, 0);
+    } catch (error) {
+      console.error("Ошибка при получении длительности дружбы:", error);
       return 0;
     }
   }
