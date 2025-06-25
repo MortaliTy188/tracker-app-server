@@ -1,5 +1,4 @@
-const User = require("../models/userModel");
-const Friendship = require("../models/friendshipModel");
+const { User, Friendship } = require("../models");
 const { Op } = require("sequelize");
 
 // Отправить запрос на дружбу
@@ -90,6 +89,10 @@ const acceptFriendRequest = async (req, res) => {
     const userId = req.user.id;
     const { friendshipId } = req.params;
 
+    console.log(
+      `✅ Accept request - User ID: ${userId}, Friendship ID: ${friendshipId}`
+    );
+
     const friendship = await Friendship.findByPk(friendshipId);
 
     if (!friendship) {
@@ -99,8 +102,15 @@ const acceptFriendRequest = async (req, res) => {
       });
     }
 
+    console.log(
+      `✅ Friendship found - Requester ID: ${friendship.requester_id}, Addressee ID: ${friendship.addressee_id}, Status: ${friendship.status}`
+    );
+
     // Проверяем, что текущий пользователь является адресатом запроса
-    if (friendship.addressee_id !== userId) {
+    if (parseInt(friendship.addressee_id) !== parseInt(userId)) {
+      console.log(
+        `❌ Access denied - Expected addressee: ${friendship.addressee_id}, Actual user: ${userId}`
+      );
       return res.status(403).json({
         success: false,
         message: "Нет прав для выполнения этого действия",
@@ -146,6 +156,10 @@ const declineFriendRequest = async (req, res) => {
     const userId = req.user.id;
     const { friendshipId } = req.params;
 
+    console.log(
+      `❌ Decline request - User ID: ${userId}, Friendship ID: ${friendshipId}`
+    );
+
     const friendship = await Friendship.findByPk(friendshipId);
 
     if (!friendship) {
@@ -155,8 +169,15 @@ const declineFriendRequest = async (req, res) => {
       });
     }
 
+    console.log(
+      `❌ Friendship found - Requester ID: ${friendship.requester_id}, Addressee ID: ${friendship.addressee_id}, Status: ${friendship.status}`
+    );
+
     // Проверяем, что текущий пользователь является адресатом запроса
-    if (friendship.addressee_id !== userId) {
+    if (parseInt(friendship.addressee_id) !== parseInt(userId)) {
+      console.log(
+        `❌ Access denied - Expected addressee: ${friendship.addressee_id}, Actual user: ${userId}`
+      );
       return res.status(403).json({
         success: false,
         message: "Нет прав для выполнения этого действия",
@@ -202,6 +223,10 @@ const removeFriend = async (req, res) => {
     const userId = req.user.id;
     const { friendshipId } = req.params;
 
+    console.log(
+      `🗑️ Remove friend - User ID: ${userId}, Friendship ID: ${friendshipId}`
+    );
+
     const friendship = await Friendship.findByPk(friendshipId);
 
     if (!friendship) {
@@ -211,11 +236,18 @@ const removeFriend = async (req, res) => {
       });
     }
 
+    console.log(
+      `🗑️ Friendship found - Requester ID: ${friendship.requester_id}, Addressee ID: ${friendship.addressee_id}, Status: ${friendship.status}`
+    );
+
     // Проверяем, что текущий пользователь участвует в этой дружбе
     if (
-      friendship.requester_id !== userId &&
-      friendship.addressee_id !== userId
+      parseInt(friendship.requester_id) !== parseInt(userId) &&
+      parseInt(friendship.addressee_id) !== parseInt(userId)
     ) {
+      console.log(
+        `❌ Access denied - User ${userId} is not part of friendship between ${friendship.requester_id} and ${friendship.addressee_id}`
+      );
       return res.status(403).json({
         success: false,
         message: "Нет прав для выполнения этого действия",
@@ -245,54 +277,71 @@ const getFriends = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
-    // Получаем всех друзей пользователя (принятые запросы)
-    const friendships = await Friendship.findAndCountAll({
+    // Получаем принятые дружбы где пользователь является отправителем
+    const sentFriendships = await Friendship.findAll({
       where: {
-        [Op.or]: [{ requester_id: userId }, { addressee_id: userId }],
+        requester_id: userId,
         status: "accepted",
       },
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      include: [
+        {
+          model: User,
+          as: "addressee",
+          attributes: ["id", "name", "avatar", "level", "isPrivate"],
+        },
+      ],
       order: [["updated_at", "DESC"]],
-    }); // Получаем ID друзей
-    const friendIds = friendships.rows.map((friendship) => {
-      return friendship.requester_id === userId
-        ? friendship.addressee_id
-        : friendship.requester_id;
     });
 
-    let friends = [];
-    if (friendIds.length > 0) {
-      // Получаем информацию о друзьях
-      const friendsInfo = await User.findAll({
-        where: {
-          id: {
-            [Op.in]: friendIds,
-          },
+    // Получаем принятые дружбы где пользователь является получателем
+    const receivedFriendships = await Friendship.findAll({
+      where: {
+        addressee_id: userId,
+        status: "accepted",
+      },
+      include: [
+        {
+          model: User,
+          as: "requester",
+          attributes: ["id", "name", "avatar", "level", "isPrivate"],
         },
-        attributes: ["id", "name", "avatar", "level", "isPrivate"],
-      });
+      ],
+      order: [["updated_at", "DESC"]],
+    });
 
-      // Формируем список друзей
-      friends = friendships.rows.map((friendship) => {
-        const friendId =
-          friendship.requester_id === userId
-            ? friendship.addressee_id
-            : friendship.requester_id;
+    // Объединяем и форматируем друзей
+    const allFriendships = [
+      ...sentFriendships.map((f) => ({
+        friendshipId: f.id,
+        friend: f.addressee,
+        friendsSince: f.updated_at,
+      })),
+      ...receivedFriendships.map((f) => ({
+        friendshipId: f.id,
+        friend: f.requester,
+        friendsSince: f.updated_at,
+      })),
+    ];
 
-        const friendInfo = friendsInfo.find((f) => f.id === friendId);
+    // Сортируем по дате обновления и применяем пагинацию
+    allFriendships.sort(
+      (a, b) => new Date(b.friendsSince) - new Date(a.friendsSince)
+    );
+    const totalFriends = allFriendships.length;
+    const paginatedFriends = allFriendships.slice(
+      offset,
+      offset + parseInt(limit)
+    );
 
-        return {
-          friendshipId: friendship.id,
-          id: friendInfo.id,
-          name: friendInfo.name,
-          avatar: friendInfo.avatar,
-          level: friendInfo.level,
-          isPrivate: friendInfo.isPrivate,
-          friendsSince: friendship.updated_at,
-        };
-      });
-    }
+    const friends = paginatedFriends.map((item) => ({
+      friendshipId: item.friendshipId,
+      id: item.friend.id,
+      name: item.friend.name,
+      avatar: item.friend.avatar,
+      level: item.friend.level,
+      isPrivate: item.friend.isPrivate,
+      friendsSince: item.friendsSince,
+    }));
 
     res.json({
       success: true,
@@ -301,8 +350,8 @@ const getFriends = async (req, res) => {
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          total: friendships.count,
-          totalPages: Math.ceil(friendships.count / limit),
+          total: totalFriends,
+          totalPages: Math.ceil(totalFriends / limit),
         },
       },
     });
@@ -322,46 +371,38 @@ const getPendingRequests = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
+    console.log(`📥 Getting pending requests for user ${userId}`);
+
+    // Используем связи для получения данных в одном запросе
     const requests = await Friendship.findAndCountAll({
       where: {
         addressee_id: userId,
         status: "pending",
       },
+      include: [
+        {
+          model: User,
+          as: "requester",
+          attributes: ["id", "name", "avatar", "level"],
+        },
+      ],
       limit: parseInt(limit),
       offset: parseInt(offset),
       order: [["created_at", "DESC"]],
-    }); // Получаем ID запросчиков
-    const requesterIds = requests.rows.map((request) => request.requester_id);
+    });
 
-    let pendingRequests = [];
-    if (requesterIds.length > 0) {
-      // Получаем информацию о запросчиках
-      const requestersInfo = await User.findAll({
-        where: {
-          id: {
-            [Op.in]: requesterIds,
-          },
-        },
-        attributes: ["id", "name", "avatar", "level"],
-      });
+    console.log(`📥 Found ${requests.count} pending requests`);
 
-      pendingRequests = requests.rows.map((request) => {
-        const requesterInfo = requestersInfo.find(
-          (u) => u.id === request.requester_id
-        );
-
-        return {
-          friendshipId: request.id,
-          requester: {
-            id: requesterInfo.id,
-            name: requesterInfo.name,
-            avatar: requesterInfo.avatar,
-            level: requesterInfo.level,
-          },
-          requestDate: request.created_at,
-        };
-      });
-    }
+    const pendingRequests = requests.rows.map((request) => ({
+      friendshipId: request.id,
+      requester: {
+        id: request.requester.id,
+        name: request.requester.name,
+        avatar: request.requester.avatar,
+        level: request.requester.level,
+      },
+      requestDate: request.created_at,
+    }));
 
     res.json({
       success: true,
@@ -391,46 +432,34 @@ const getSentRequests = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
+    // Используем связи для получения данных в одном запросе
     const requests = await Friendship.findAndCountAll({
       where: {
         requester_id: userId,
         status: "pending",
       },
+      include: [
+        {
+          model: User,
+          as: "addressee",
+          attributes: ["id", "name", "avatar", "level"],
+        },
+      ],
       limit: parseInt(limit),
       offset: parseInt(offset),
       order: [["created_at", "DESC"]],
-    }); // Получаем ID адресатов
-    const addresseeIds = requests.rows.map((request) => request.addressee_id);
+    });
 
-    let sentRequests = [];
-    if (addresseeIds.length > 0) {
-      // Получаем информацию об адресатах
-      const addresseesInfo = await User.findAll({
-        where: {
-          id: {
-            [Op.in]: addresseeIds,
-          },
-        },
-        attributes: ["id", "name", "avatar", "level"],
-      });
-
-      sentRequests = requests.rows.map((request) => {
-        const addresseeInfo = addresseesInfo.find(
-          (u) => u.id === request.addressee_id
-        );
-
-        return {
-          friendshipId: request.id,
-          addressee: {
-            id: addresseeInfo.id,
-            name: addresseeInfo.name,
-            avatar: addresseeInfo.avatar,
-            level: addresseeInfo.level,
-          },
-          requestDate: request.created_at,
-        };
-      });
-    }
+    const sentRequests = requests.rows.map((request) => ({
+      friendshipId: request.id,
+      addressee: {
+        id: request.addressee.id,
+        name: request.addressee.name,
+        avatar: request.addressee.avatar,
+        level: request.addressee.level,
+      },
+      requestDate: request.created_at,
+    }));
 
     res.json({
       success: true,

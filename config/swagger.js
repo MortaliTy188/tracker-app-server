@@ -23,6 +23,34 @@ const swaggerOptions = {
           bearerFormat: "JWT",
         },
       },
+      schemas: {
+        Pagination: {
+          type: "object",
+          properties: {
+            page: {
+              type: "integer",
+              description: "Текущая страница",
+              example: 1,
+            },
+            limit: {
+              type: "integer",
+              description: "Количество элементов на странице",
+              example: 20,
+            },
+            total: {
+              type: "integer",
+              description: "Общее количество элементов",
+              example: 100,
+            },
+            totalPages: {
+              type: "integer",
+              description: "Общее количество страниц",
+              example: 5,
+            },
+          },
+          required: ["page", "limit", "total", "totalPages"],
+        },
+      },
     },
     security: [
       {
