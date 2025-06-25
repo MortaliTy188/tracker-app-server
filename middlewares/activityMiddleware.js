@@ -115,6 +115,14 @@ const profileActivityMiddleware = {
   passwordChange: activityMiddleware("PASSWORD_CHANGE", () => ({
     changeTime: new Date(),
   })),
+
+  privacyChange: activityMiddleware(
+    "PRIVACY_CHANGE",
+    (req, res, responseBody) => ({
+      isPrivate: req.body.isPrivate,
+      changeTime: new Date(),
+    })
+  ),
 };
 
 /**
@@ -180,6 +188,34 @@ const achievementActivityMiddleware = {
 };
 
 /**
+ * Middleware для логирования операций с друзьями
+ */
+const friendshipActivityMiddleware = {
+  sendRequest: activityMiddleware(
+    "FRIEND_REQUEST_SENT",
+    (req, res, responseBody) => ({
+      addresseeId: req.body.addresseeId,
+      sentAt: new Date(),
+    })
+  ),
+
+  acceptRequest: activityMiddleware("FRIEND_REQUEST_ACCEPTED", (req, res) => ({
+    friendshipId: req.params.friendshipId,
+    acceptedAt: new Date(),
+  })),
+
+  declineRequest: activityMiddleware("FRIEND_REQUEST_DECLINED", (req, res) => ({
+    friendshipId: req.params.friendshipId,
+    declinedAt: new Date(),
+  })),
+
+  removeFriend: activityMiddleware("FRIEND_REMOVED", (req, res) => ({
+    friendshipId: req.params.friendshipId,
+    removedAt: new Date(),
+  })),
+};
+
+/**
  * Middleware для логирования обратной связи
  */
 const feedbackActivityMiddleware = {
@@ -203,4 +239,5 @@ module.exports = {
   noteActivityMiddleware,
   achievementActivityMiddleware,
   feedbackActivityMiddleware,
+  friendshipActivityMiddleware,
 };

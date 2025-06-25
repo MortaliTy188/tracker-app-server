@@ -5,6 +5,9 @@ const userController = require("../controllers/userController");
 const authenticateJWT = require("../middlewares/authMiddleware");
 const authMiddleware = require("../middlewares/authMiddleware");
 const optionalAuth = require("../middlewares/optionalAuth");
+const {
+  profileActivityMiddleware,
+} = require("../middlewares/activityMiddleware");
 
 /**
  * @swagger
@@ -639,7 +642,12 @@ router.post(
  *       401:
  *         description: Не авторизован
  */
-router.put("/privacy", authMiddleware, userController.updatePrivacySettings);
+router.put(
+  "/privacy",
+  authMiddleware,
+  profileActivityMiddleware.privacyChange,
+  userController.updatePrivacySettings
+);
 
 /**
  * @swagger

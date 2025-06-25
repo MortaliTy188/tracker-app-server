@@ -31,7 +31,12 @@ async function createActivityLogTable() {
             'SKILL_UPDATED',
             'SKILL_DELETED',
             'ACHIEVEMENT_EARNED',
-            'FEEDBACK_SUBMITTED'
+            'FEEDBACK_SUBMITTED',
+            'FRIEND_REQUEST_SENT',
+            'FRIEND_REQUEST_ACCEPTED',
+            'FRIEND_REQUEST_DECLINED',
+            'FRIEND_REMOVED',
+            'PRIVACY_CHANGE'
           );
         END IF;
       END

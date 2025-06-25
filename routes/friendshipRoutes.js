@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const friendshipController = require("../controllers/friendshipController");
 const authMiddleware = require("../middlewares/authMiddleware");
+const {
+  friendshipActivityMiddleware,
+} = require("../middlewares/activityMiddleware");
 
 /**
  * @swagger
@@ -140,7 +143,12 @@ const authMiddleware = require("../middlewares/authMiddleware");
  *       500:
  *         description: Внутренняя ошибка сервера
  */
-router.post("/request", authMiddleware, friendshipController.sendFriendRequest);
+router.post(
+  "/request",
+  authMiddleware,
+  friendshipActivityMiddleware.sendRequest,
+  friendshipController.sendFriendRequest
+);
 
 /**
  * @swagger
@@ -173,6 +181,7 @@ router.post("/request", authMiddleware, friendshipController.sendFriendRequest);
 router.patch(
   "/:friendshipId/accept",
   authMiddleware,
+  friendshipActivityMiddleware.acceptRequest,
   friendshipController.acceptFriendRequest
 );
 
@@ -207,6 +216,7 @@ router.patch(
 router.patch(
   "/:friendshipId/decline",
   authMiddleware,
+  friendshipActivityMiddleware.declineRequest,
   friendshipController.declineFriendRequest
 );
 
@@ -239,6 +249,7 @@ router.patch(
 router.delete(
   "/:friendshipId/remove",
   authMiddleware,
+  friendshipActivityMiddleware.removeFriend,
   friendshipController.removeFriend
 );
 
