@@ -12,6 +12,7 @@ const Achievement = require("./achievementModel");
 const UserAchievement = require("./userAchievementModel");
 const ActivityLog = require("./activityLogModel");
 const Friendship = require("./friendshipModel");
+const Message = require("./messageModel");
 
 // Определение связей между моделями
 
@@ -119,6 +120,30 @@ Friendship.belongsTo(User, {
   as: "addressee",
 });
 
+// User -> Message (пользователь может отправлять сообщения)
+User.hasMany(Message, {
+  foreignKey: "sender_id",
+  as: "sentMessages",
+});
+
+// User -> Message (пользователь может получать сообщения)
+User.hasMany(Message, {
+  foreignKey: "receiver_id",
+  as: "receivedMessages",
+});
+
+// Message -> User (сообщение принадлежит отправителю)
+Message.belongsTo(User, {
+  foreignKey: "sender_id",
+  as: "sender",
+});
+
+// Message -> User (сообщение принадлежит получателю)
+Message.belongsTo(User, {
+  foreignKey: "receiver_id",
+  as: "receiver",
+});
+
 module.exports = {
   sequelize,
   User,
@@ -132,4 +157,5 @@ module.exports = {
   UserAchievement,
   ActivityLog,
   Friendship,
+  Message,
 };

@@ -459,6 +459,11 @@ class AchievementManager {
         case "Выходной энтузиаст":
           // Проверяем, входил ли пользователь в выходные
           return await this.checkWeekendLogin(userId);
+
+        case "Открытость":
+          // Проверяем, изменял ли пользователь настройки приватности
+          return await this.checkPrivacySettingsChanged(userId);
+
         case "Первопроходец":
           // Проверяем, входит ли пользователь в первые 100
           // Если ID пользователя <= 100, то он точно один из первых 100
@@ -720,6 +725,37 @@ class AchievementManager {
       return Math.max(diffInDays, 0);
     } catch (error) {
       console.error("Ошибка при получении длительности дружбы:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Проверяет, изменял ли пользователь настройки приватности
+   */
+  static async checkPrivacySettingsChanged(userId) {
+    try {
+      const { ActivityLog } = require("../models");
+
+      // Ищем записи об изменении профиля с деталями о приватности
+      const privacyChanges = await ActivityLog.findAll({
+        where: {
+          user_id: userId,
+          action: "PROFILE_UPDATE",
+          details: {
+            isPrivate: {
+              [Op.ne]: null,
+            },
+          },
+        },
+        limit: 1,
+      });
+
+      return privacyChanges.length > 0 ? 1 : 0;
+    } catch (error) {
+      console.error(
+        "Ошибка при проверке изменения настроек приватности:",
+        error
+      );
       return 0;
     }
   }

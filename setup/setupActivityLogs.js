@@ -35,8 +35,7 @@ async function createActivityLogTable() {
             'FRIEND_REQUEST_SENT',
             'FRIEND_REQUEST_ACCEPTED',
             'FRIEND_REQUEST_DECLINED',
-            'FRIEND_REMOVED',
-            'PRIVACY_CHANGE'
+            'FRIEND_REMOVED'
           );
         END IF;
       END

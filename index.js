@@ -3,6 +3,8 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const swaggerUi = require("swagger-ui-express");
 const path = require("path");
+const { createServer } = require("http");
+const { Server } = require("socket.io");
 
 // Импорт моделей и синхронизация БД
 const { sequelize } = require("./models");
@@ -22,6 +24,7 @@ const feedbackRoutes = require("./routes/feedbackRoutes");
 const achievementRoutes = require("./routes/achievementRoutes");
 const activityRoutes = require("./routes/activityRoutes");
 const friendshipRoutes = require("./routes/friendshipRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 
 // Импорт middleware
 const {
@@ -35,7 +38,11 @@ const {
 // Импорт утилиты для поиска порта
 const PortFinder = require("./utils/portFinder");
 
+// Импорт Socket.IO менеджера
+const SocketManager = require("./utils/socketManager");
+
 const app = express();
+const server = createServer(app);
 const DEFAULT_PORT = process.env.PORT || 3000;
 
 // Middleware для обработки CORS
@@ -46,8 +53,22 @@ app.use(
   })
 );
 
+// Настройка Socket.IO с CORS
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "*",
+    credentials: true,
+  },
+});
+
+// Инициализация Socket.IO менеджера
+const socketManager = new SocketManager(io);
+
 // Статическая раздача загруженных файлов
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Статическая раздача публичных файлов (демо чата)
+app.use("/public", express.static(path.join(__dirname, "public")));
 
 // Middleware для логирования запросов
 app.use(requestLogger);
@@ -88,6 +109,8 @@ app.get("/", (req, res) => {
       statuses: "/api/statuses",
       feedback: "/api/feedback",
       activity: "/api/activity",
+      friendship: "/api/friendship",
+      chat: "/api/chat",
       swagger: "/api-docs",
       health: "/health",
     },
@@ -131,6 +154,7 @@ app.use("/api/feedback", feedbackRoutes);
 app.use("/api/achievements", achievementRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/friendship", friendshipRoutes);
+app.use("/api/chat", chatRoutes);
 
 // Middleware для обработки несуществующих маршрутов
 app.use(notFoundHandler);
@@ -151,11 +175,15 @@ async function startServer() {
     const PORT = await PortFinder.getAvailablePort(DEFAULT_PORT);
 
     // Запуск сервера
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`\n✅ Сервер запущен успешно!`);
       console.log(`🌐 URL: http://localhost:${PORT}`);
       console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
       console.log(`❤️  Health Check: http://localhost:${PORT}/health`);
+      console.log(`💬 Socket.IO готов для чата в реальном времени`);
+      console.log(
+        `👥 Онлайн пользователей: ${socketManager.getOnlineUsersCount()}`
+      );
       console.log(`\n📋 Доступные маршруты:`);
       console.log(`\n👤 Пользователи:`);
       console.log(

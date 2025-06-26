@@ -456,6 +456,12 @@ class UserController {
       // Обновляем настройки приватности
       await User.update({ isPrivate }, { where: { id: userId } });
 
+      // Проверяем достижения
+      await AchievementManager.checkAchievements(userId, "privacy_change", {
+        isPrivate,
+        changeTime: new Date(),
+      });
+
       // Получаем обновленного пользователя
       const updatedUser = await User.findByPk(userId, {
         attributes: [
@@ -595,6 +601,7 @@ class UserController {
           "level",
           "registrationDate",
           "avatar",
+          "isPrivate",
         ],
         include: [
           {

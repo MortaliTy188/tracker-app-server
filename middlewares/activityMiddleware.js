@@ -12,15 +12,24 @@ const activityMiddleware = (action, getDetails = () => ({})) => {
     const originalSend = res.send;
     const originalJson = res.json;
 
+    // Флаг для предотвращения двойного логирования
+    let isLogged = false;
+
     // Переопределяем метод send
     res.send = function (body) {
-      logActivity.call(this, body);
+      if (!isLogged) {
+        logActivity.call(this, body);
+        isLogged = true;
+      }
       return originalSend.call(this, body);
     };
 
     // Переопределяем метод json
     res.json = function (body) {
-      logActivity.call(this, body);
+      if (!isLogged) {
+        logActivity.call(this, body);
+        isLogged = true;
+      }
       return originalJson.call(this, body);
     };
 
@@ -117,7 +126,7 @@ const profileActivityMiddleware = {
   })),
 
   privacyChange: activityMiddleware(
-    "PRIVACY_CHANGE",
+    "PROFILE_UPDATE",
     (req, res, responseBody) => ({
       isPrivate: req.body.isPrivate,
       changeTime: new Date(),
