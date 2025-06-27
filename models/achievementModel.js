@@ -33,6 +33,15 @@ const Achievement = sequelize.define(
         "friend_requests_received", // За получение запросов на дружбу
         "friend_requests_sent", // За отправку запросов на дружбу
         "friendship_duration", // За длительность дружбы
+        "messages_sent", // За отправленные сообщения
+        "messages_received", // За полученные сообщения
+        "unique_conversations", // За общение с уникальными пользователями
+        "quick_replies", // За быстрые ответы
+        "night_messages", // За ночные сообщения
+        "emoji_messages", // За использование эмодзи
+        "long_messages", // За длинные сообщения
+        "conversation_marathon", // За продолжительные беседы
+        "edited_messages", // За отредактированные сообщения
         "special" // Специальные достижения
       ),
       allowNull: false,

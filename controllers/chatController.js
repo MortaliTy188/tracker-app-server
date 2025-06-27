@@ -1,5 +1,6 @@
 const { User, Message, Friendship } = require("../models");
 const { Op } = require("sequelize");
+const AchievementManager = require("../utils/achievementManager");
 
 /**
  * Контроллер для работы с сообщениями чата
@@ -233,6 +234,43 @@ class ChatController {
         ],
       });
 
+      // Проверяем достижения чата для отправителя
+      try {
+        await AchievementManager.checkAchievements(senderId, "message_sent", {
+          messageId: message.id,
+          receiverId: receiverId,
+          content: content,
+          messageType: messageType,
+        });
+        console.log(
+          `🏆 Проверены достижения чата для пользователя ${senderId}`
+        );
+      } catch (achievementError) {
+        console.error("Ошибка при проверке достижений чата:", achievementError);
+      }
+
+      // Проверяем достижения чата для получателя
+      try {
+        await AchievementManager.checkAchievements(
+          receiverId,
+          "message_received",
+          {
+            messageId: message.id,
+            senderId: senderId,
+            content: content,
+            messageType: messageType,
+          }
+        );
+        console.log(
+          `🏆 Проверены достижения чата для получателя ${receiverId}`
+        );
+      } catch (achievementError) {
+        console.error(
+          "Ошибка при проверке достижений чата для получателя:",
+          achievementError
+        );
+      }
+
       res.status(201).json({
         success: true,
         data: messageWithSender,
@@ -278,6 +316,22 @@ class ChatController {
         is_edited: true,
         edited_at: new Date(),
       });
+
+      // Проверяем достижения за редактирование сообщений
+      try {
+        await AchievementManager.checkAchievements(userId, "message_edited", {
+          messageId: messageId,
+          newContent: content,
+        });
+        console.log(
+          `🏆 Проверены достижения за редактирование для пользователя ${userId}`
+        );
+      } catch (achievementError) {
+        console.error(
+          "Ошибка при проверке достижений за редактирование:",
+          achievementError
+        );
+      }
 
       res.json({
         success: true,

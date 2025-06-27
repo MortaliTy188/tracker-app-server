@@ -176,6 +176,34 @@ class AchievementManager {
         case "friendship_duration":
           return await this.getLongestFriendshipDuration(userId);
 
+        // Новые типы достижений для чата
+        case "messages_sent":
+          return await this.getMessagesSentCount(userId);
+
+        case "messages_received":
+          return await this.getMessagesReceivedCount(userId);
+
+        case "unique_conversations":
+          return await this.getUniqueConversationsCount(userId);
+
+        case "quick_replies":
+          return await this.getQuickRepliesCount(userId);
+
+        case "night_messages":
+          return await this.getNightMessagesCount(userId);
+
+        case "emoji_messages":
+          return await this.getEmojiMessagesCount(userId);
+
+        case "long_messages":
+          return await this.getLongMessagesCount(userId);
+
+        case "conversation_marathon":
+          return await this.getConversationMarathonCount(userId);
+
+        case "edited_messages":
+          return await this.getEditedMessagesCount(userId);
+
         default:
           return 0;
       }
@@ -754,6 +782,347 @@ class AchievementManager {
     } catch (error) {
       console.error(
         "Ошибка при проверке изменения настроек приватности:",
+        error
+      );
+      return 0;
+    }
+  }
+
+  // ========================================
+  // Методы для достижений чата
+  // ========================================
+
+  /**
+   * Получает количество отправленных сообщений
+   */
+  static async getMessagesSentCount(userId) {
+    try {
+      const { Message } = require("../models");
+
+      const count = await Message.count({
+        where: {
+          sender_id: userId,
+        },
+      });
+      return count;
+    } catch (error) {
+      console.error(
+        "Ошибка при получении количества отправленных сообщений:",
+        error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество полученных сообщений
+   */
+  static async getMessagesReceivedCount(userId) {
+    try {
+      const { Message } = require("../models");
+
+      const count = await Message.count({
+        where: {
+          receiver_id: userId,
+        },
+      });
+      return count;
+    } catch (error) {
+      console.error(
+        "Ошибка при получении количества полученных сообщений:",
+        error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество уникальных собеседников
+   */
+  static async getUniqueConversationsCount(userId) {
+    try {
+      const { Message } = require("../models");
+
+      // Получаем уникальных получателей сообщений от пользователя
+      const sentToUsers = await Message.findAll({
+        where: { sender_id: userId },
+        attributes: [
+          [
+            Message.sequelize.fn(
+              "DISTINCT",
+              Message.sequelize.col("receiver_id")
+            ),
+            "receiver_id",
+          ],
+        ],
+        raw: true,
+      });
+
+      // Получаем уникальных отправителей сообщений пользователю
+      const receivedFromUsers = await Message.findAll({
+        where: { receiver_id: userId },
+        attributes: [
+          [
+            Message.sequelize.fn(
+              "DISTINCT",
+              Message.sequelize.col("sender_id")
+            ),
+            "sender_id",
+          ],
+        ],
+        raw: true,
+      });
+
+      // Объединяем и убираем дубликаты
+      const uniqueUsers = new Set([
+        ...sentToUsers.map((row) => row.receiver_id),
+        ...receivedFromUsers.map((row) => row.sender_id),
+      ]);
+
+      return uniqueUsers.size;
+    } catch (error) {
+      console.error(
+        "Ошибка при получении количества уникальных собеседников:",
+        error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество быстрых ответов (в течение 1 минуты)
+   */
+  static async getQuickRepliesCount(userId) {
+    try {
+      const { Message } = require("../models");
+
+      // Находим сообщения, отправленные пользователем
+      const userMessages = await Message.findAll({
+        where: { sender_id: userId },
+        order: [["created_at", "ASC"]],
+        raw: true,
+      });
+
+      // Находим предыдущие сообщения от других пользователей
+      const receivedMessages = await Message.findAll({
+        where: { receiver_id: userId },
+        order: [["created_at", "ASC"]],
+        raw: true,
+      });
+
+      let quickRepliesCount = 0;
+
+      for (const sentMessage of userMessages) {
+        // Ищем последнее полученное сообщение перед отправкой
+        const lastReceivedMessage = receivedMessages
+          .filter(
+            (msg) =>
+              new Date(msg.created_at) < new Date(sentMessage.created_at) &&
+              msg.sender_id === sentMessage.receiver_id
+          )
+          .pop();
+
+        if (lastReceivedMessage) {
+          const timeDiff =
+            new Date(sentMessage.created_at) -
+            new Date(lastReceivedMessage.created_at);
+          const minutesDiff = timeDiff / (1000 * 60);
+
+          if (minutesDiff <= 1) {
+            quickRepliesCount++;
+          }
+        }
+      }
+
+      return quickRepliesCount;
+    } catch (error) {
+      console.error("Ошибка при получении количества быстрых ответов:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество ночных сообщений (22:00 - 6:00)
+   */
+  static async getNightMessagesCount(userId) {
+    try {
+      const { Message } = require("../models");
+
+      const nightMessages = await Message.findAll({
+        where: {
+          sender_id: userId,
+          [Op.or]: [
+            Message.sequelize.where(
+              Message.sequelize.fn(
+                "EXTRACT",
+                Message.sequelize.literal("HOUR FROM created_at")
+              ),
+              { [Op.gte]: 22 }
+            ),
+            Message.sequelize.where(
+              Message.sequelize.fn(
+                "EXTRACT",
+                Message.sequelize.literal("HOUR FROM created_at")
+              ),
+              { [Op.lt]: 6 }
+            ),
+          ],
+        },
+      });
+
+      return nightMessages.length;
+    } catch (error) {
+      console.error("Ошибка при получении количества ночных сообщений:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество сообщений с эмодзи
+   */
+  static async getEmojiMessagesCount(userId) {
+    try {
+      const { Message } = require("../models");
+
+      // Регулярное выражение для поиска эмодзи
+      const emojiRegex =
+        /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u;
+
+      const allMessages = await Message.findAll({
+        where: { sender_id: userId },
+        attributes: ["content"],
+        raw: true,
+      });
+
+      let emojiMessagesCount = 0;
+      for (const message of allMessages) {
+        if (emojiRegex.test(message.content)) {
+          emojiMessagesCount++;
+        }
+      }
+
+      return emojiMessagesCount;
+    } catch (error) {
+      console.error(
+        "Ошибка при получении количества сообщений с эмодзи:",
+        error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество длинных сообщений (больше 500 символов)
+   */
+  static async getLongMessagesCount(userId) {
+    try {
+      const { Message } = require("../models");
+
+      const count = await Message.count({
+        where: {
+          sender_id: userId,
+          [Op.and]: [
+            Message.sequelize.where(
+              Message.sequelize.fn("LENGTH", Message.sequelize.col("content")),
+              { [Op.gt]: 500 }
+            ),
+          ],
+        },
+      });
+
+      return count;
+    } catch (error) {
+      console.error(
+        "Ошибка при получении количества длинных сообщений:",
+        error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Получает максимальное количество сообщений в одном диалоге
+   */
+  static async getConversationMarathonCount(userId) {
+    try {
+      const { Message } = require("../models");
+
+      // Получаем все диалоги пользователя
+      const conversations = await Message.findAll({
+        where: {
+          [Op.or]: [{ sender_id: userId }, { receiver_id: userId }],
+        },
+        attributes: [
+          [
+            Message.sequelize.fn(
+              "LEAST",
+              Message.sequelize.col("sender_id"),
+              Message.sequelize.col("receiver_id")
+            ),
+            "user1",
+          ],
+          [
+            Message.sequelize.fn(
+              "GREATEST",
+              Message.sequelize.col("sender_id"),
+              Message.sequelize.col("receiver_id")
+            ),
+            "user2",
+          ],
+          [
+            Message.sequelize.fn("COUNT", Message.sequelize.col("id")),
+            "message_count",
+          ],
+        ],
+        group: [
+          Message.sequelize.fn(
+            "LEAST",
+            Message.sequelize.col("sender_id"),
+            Message.sequelize.col("receiver_id")
+          ),
+          Message.sequelize.fn(
+            "GREATEST",
+            Message.sequelize.col("sender_id"),
+            Message.sequelize.col("receiver_id")
+          ),
+        ],
+        order: [
+          [Message.sequelize.fn("COUNT", Message.sequelize.col("id")), "DESC"],
+        ],
+        limit: 1,
+        raw: true,
+      });
+
+      return conversations.length > 0
+        ? parseInt(conversations[0].message_count)
+        : 0;
+    } catch (error) {
+      console.error(
+        "Ошибка при получении максимального количества сообщений в диалоге:",
+        error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество отредактированных сообщений
+   */
+  static async getEditedMessagesCount(userId) {
+    try {
+      const { Message } = require("../models");
+
+      const count = await Message.count({
+        where: {
+          sender_id: userId,
+          is_edited: true,
+        },
+      });
+
+      return count;
+    } catch (error) {
+      console.error(
+        "Ошибка при получении количества отредактированных сообщений:",
         error
       );
       return 0;
