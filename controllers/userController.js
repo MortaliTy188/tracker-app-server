@@ -803,6 +803,8 @@ class UserController {
       const offset = (page - 1) * limit; // Условие поиска
       const whereCondition = {};
 
+      console.log("🔍 getAllUsers - Current user ID:", currentUserId);
+
       if (search) {
         whereCondition.name = {
           [require("sequelize").Op.iLike]: `%${search}%`,
@@ -814,7 +816,12 @@ class UserController {
         whereCondition.id = {
           [require("sequelize").Op.ne]: currentUserId,
         };
+        console.log("🔍 getAllUsers - Excluding current user from results");
+      } else {
+        console.log("🔍 getAllUsers - No current user to exclude");
       }
+
+      console.log("🔍 getAllUsers - Where condition:", whereCondition);
 
       // Получаем пользователей с пагинацией
       const { count, rows: users } = await User.findAndCountAll({
@@ -832,6 +839,19 @@ class UserController {
         order: [["registrationDate", "DESC"]],
       });
 
+      console.log("🔍 getAllUsers - Found users count:", users.length);
+      console.log(
+        "🔍 getAllUsers - User IDs:",
+        users.map((u) => u.id)
+      );
+      if (currentUserId && users.some((u) => u.id === currentUserId)) {
+        console.log(
+          "⚠️ WARNING: Current user found in results! This should not happen."
+        );
+      } else {
+        console.log("✅ Current user correctly excluded from results");
+      }
+
       // Если пользователь авторизован, получаем информацию о дружбе
       let friendshipStatuses = {};
       if (currentUserId) {
@@ -848,6 +868,9 @@ class UserController {
         });
 
         // Создаем мапу статусов дружбы
+        console.log(
+          `📊 Found ${friendships.length} friendships for user ${currentUserId}`
+        );
         friendships.forEach((friendship) => {
           const otherUserId =
             friendship.requester_id === currentUserId
@@ -860,13 +883,21 @@ class UserController {
               friendship.addressee_id === currentUserId
                 ? "received_request"
                 : "sent_request";
+          } else if (status === "accepted") {
+            status = "accepted";
           }
+
+          console.log(
+            `📊 Friendship: ${friendship.requester_id} -> ${friendship.addressee_id}, original status: ${friendship.status}, final status: ${status}, other user: ${otherUserId}`
+          );
 
           friendshipStatuses[otherUserId] = {
             status,
             friendshipId: friendship.id,
           };
         });
+
+        console.log(`📊 Final friendship statuses map:`, friendshipStatuses);
       }
 
       // Получаем статистику для каждого пользователя
@@ -880,7 +911,13 @@ class UserController {
             if (currentUserId && friendshipStatuses[user.id]) {
               friendshipStatus = friendshipStatuses[user.id].status;
               friendshipId = friendshipStatuses[user.id].friendshipId;
-              console.log(`Установлен статус дружбы: ${friendshipStatus}`);
+              console.log(
+                `📊 User ${user.name} (${user.id}) friendship status: ${friendshipStatus}, friendshipId: ${friendshipId}`
+              );
+            } else {
+              console.log(
+                `📊 User ${user.name} (${user.id}) has no friendship record`
+              );
             }
 
             // Для приватных профилей не показываем детальную статистику

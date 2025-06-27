@@ -143,6 +143,11 @@ app.get("/health", async (req, res) => {
   }
 });
 
+// Демо чат - прямой маршрут для удобства
+app.get("/chat-demo.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "chat-demo.html"));
+});
+
 // API маршруты
 app.use("/api/users", userRoutes);
 app.use("/api/skills", skillRoutes);
@@ -181,6 +186,7 @@ async function startServer() {
       console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
       console.log(`❤️  Health Check: http://localhost:${PORT}/health`);
       console.log(`💬 Socket.IO готов для чата в реальном времени`);
+      console.log(`🗨️  Демо чат: http://localhost:${PORT}/chat-demo.html`);
       console.log(
         `👥 Онлайн пользователей: ${socketManager.getOnlineUsersCount()}`
       );
@@ -257,6 +263,19 @@ async function startServer() {
       );
       console.log(`   PUT    /api/statuses/:id          - Обновить статус`);
       console.log(`   DELETE /api/statuses/:id          - Удалить статус`);
+      console.log(`\n👥 Дружба:`);
+      console.log(`   GET    /api/friendship/friends     - Список друзей`);
+      console.log(`   POST   /api/friendship/send        - Отправить запрос`);
+      console.log(`   POST   /api/friendship/accept      - Принять запрос`);
+      console.log(`   POST   /api/friendship/decline     - Отклонить запрос`);
+      console.log(`   DELETE /api/friendship/remove      - Удалить друга`);
+      console.log(`   GET    /api/friendship/requests    - Входящие запросы`);
+      console.log(`   GET    /api/friendship/sent        - Исходящие запросы`);
+      console.log(`\n💬 Чат:`);
+      console.log(`   GET    /api/chat/conversations     - Список бесед`);
+      console.log(`   GET    /api/chat/messages/:id      - Сообщения беседы`);
+      console.log(`   POST   /api/chat/send              - Отправить сообщение`);
+      console.log(`   GET    /chat-demo.html             - Демо чат (браузер)`);
       console.log(`\n🔧 Для остановки сервера нажмите Ctrl+C`);
     });
   } catch (error) {

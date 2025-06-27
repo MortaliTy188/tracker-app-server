@@ -63,6 +63,10 @@ const sendFriendRequest = async (req, res) => {
       status: "pending",
     });
 
+    console.log(
+      `✅ Created friendship: ${requesterId} -> ${addresseeId}, ID: ${friendship.id}, status: ${friendship.status}`
+    );
+
     res.status(201).json({
       success: true,
       message: "Запрос на дружбу отправлен",
