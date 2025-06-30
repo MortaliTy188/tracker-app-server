@@ -393,17 +393,25 @@ class ChatController {
     try {
       const userId = req.user.id;
       const { otherUserId } = req.params;
+      const { messageIds } = req.body || {};
 
-      await Message.update(
-        { is_read: true },
-        {
-          where: {
-            sender_id: otherUserId,
-            receiver_id: userId,
-            is_read: false,
-          },
-        }
-      );
+      let updateWhere;
+      if (Array.isArray(messageIds) && messageIds.length > 0) {
+        updateWhere = {
+          id: messageIds,
+          receiver_id: userId,
+          sender_id: otherUserId,
+          is_read: false,
+        };
+      } else {
+        updateWhere = {
+          sender_id: otherUserId,
+          receiver_id: userId,
+          is_read: false,
+        };
+      }
+
+      await Message.update({ is_read: true }, { where: updateWhere });
 
       res.json({
         success: true,

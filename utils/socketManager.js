@@ -43,11 +43,22 @@ class SocketManager {
   // Аутентификация через Socket.IO
   async authenticateSocket(socket, next) {
     try {
+      console.log("🔐 Socket authentication attempt...");
+      console.log(
+        "🔐 Auth token:",
+        socket.handshake.auth.token?.substring(0, 20) + "..."
+      );
+      console.log(
+        "🔐 Authorization header:",
+        socket.handshake.headers.authorization?.substring(0, 30) + "..."
+      );
+
       const token =
         socket.handshake.auth.token ||
         socket.handshake.headers.authorization?.replace("Bearer ", "");
 
       if (!token) {
+        console.log("❌ No token provided in socket handshake");
         return next(new Error("Authentication error"));
       }
 
@@ -67,16 +78,18 @@ class SocketManager {
       }
 
       // Обычная JWT аутентификация для реальных пользователей
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET || "your-secret-key"
-      );
+      console.log("🔐 Attempting JWT verification...");
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret_key");
+      console.log("🔐 JWT decoded, user ID:", decoded.id);
+
       const user = await User.findByPk(decoded.id);
 
       if (!user) {
+        console.log("❌ User not found in database:", decoded.id);
         return next(new Error("User not found"));
       }
 
+      console.log("✅ Socket authentication successful for user:", user.name);
       socket.userId = user.id;
       socket.user = user;
       next();
@@ -218,23 +231,29 @@ class SocketManager {
       const { otherUserId, messageIds } = data;
       const userId = socket.userId;
 
-      // Обновляем статус сообщений
-      await Message.update(
-        { is_read: true },
-        {
-          where: {
-            id: messageIds || { [Op.in]: [] },
-            sender_id: otherUserId,
-            receiver_id: userId,
-          },
-        }
-      );
+      let updateWhere;
+      if (Array.isArray(messageIds) && messageIds.length > 0) {
+        updateWhere = {
+          id: messageIds,
+          sender_id: otherUserId,
+          receiver_id: userId,
+          is_read: false,
+        };
+      } else {
+        updateWhere = {
+          sender_id: otherUserId,
+          receiver_id: userId,
+          is_read: false,
+        };
+      }
+
+      await Message.update({ is_read: true }, { where: updateWhere });
 
       // Уведомляем отправителя о прочтении
       const roomName = this.getChatRoomName(userId, otherUserId);
       socket.to(roomName).emit("messages_read", {
         readerId: userId,
-        messageIds: messageIds,
+        messageIds: messageIds || null,
       });
 
       console.log(`👁️ Messages marked as read by ${userId}`);
