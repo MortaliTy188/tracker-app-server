@@ -293,4 +293,7 @@ router.delete("/message/:messageId", ChatController.deleteMessage);
  */
 router.patch("/read/:otherUserId", ChatController.markAsRead);
 
+// Альтернативный маршрут для совместимости с фронтендом
+router.post("/mark-read/:otherUserId", ChatController.markAsRead);
+
 module.exports = router;

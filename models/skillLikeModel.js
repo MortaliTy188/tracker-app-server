@@ -1,26 +1,23 @@
 const sequelize = require("../config/db");
 const { DataTypes } = require("sequelize");
 
-const Skill = sequelize.define(
-  "skill",
+const SkillLike = sequelize.define(
+  "skill_like",
   {
-    name: {
-      type: DataTypes.STRING,
-      allowNull: false,
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
     },
-    description: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    category_id: {
+    skill_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "skill_category",
+        model: "skills",
         key: "id",
       },
       onUpdate: "CASCADE",
-      onDelete: "RESTRICT",
+      onDelete: "CASCADE",
     },
     user_id: {
       type: DataTypes.INTEGER,
@@ -32,26 +29,27 @@ const Skill = sequelize.define(
       onUpdate: "CASCADE",
       onDelete: "CASCADE",
     },
-    is_public: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
+    type: {
+      type: DataTypes.ENUM("like", "dislike"),
       allowNull: false,
     },
     created_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
     },
-    updated_at: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-    },
   },
   {
-    tableName: "skills",
+    tableName: "skill_likes",
     timestamps: true,
     createdAt: "created_at",
-    updatedAt: "updated_at",
+    updatedAt: false,
+    indexes: [
+      {
+        unique: true,
+        fields: ["skill_id", "user_id"],
+      },
+    ],
   }
 );
 
-module.exports = Skill;
+module.exports = SkillLike;

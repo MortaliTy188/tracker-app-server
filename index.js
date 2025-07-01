@@ -25,6 +25,7 @@ const achievementRoutes = require("./routes/achievementRoutes");
 const activityRoutes = require("./routes/activityRoutes");
 const friendshipRoutes = require("./routes/friendshipRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const libraryRoutes = require("./routes/libraryRoutes");
 
 // Импорт middleware
 const {
@@ -111,6 +112,7 @@ app.get("/", (req, res) => {
       activity: "/api/activity",
       friendship: "/api/friendship",
       chat: "/api/chat",
+      library: "/api/library",
       swagger: "/api-docs",
       health: "/health",
     },
@@ -160,6 +162,7 @@ app.use("/api/achievements", achievementRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/friendship", friendshipRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/library", libraryRoutes);
 
 // Middleware для обработки несуществующих маршрутов
 app.use(notFoundHandler);
@@ -274,7 +277,9 @@ async function startServer() {
       console.log(`\n💬 Чат:`);
       console.log(`   GET    /api/chat/conversations     - Список бесед`);
       console.log(`   GET    /api/chat/messages/:id      - Сообщения беседы`);
-      console.log(`   POST   /api/chat/send              - Отправить сообщение`);
+      console.log(
+        `   POST   /api/chat/send              - Отправить сообщение`
+      );
       console.log(`   GET    /chat-demo.html             - Демо чат (браузер)`);
       console.log(`\n🔧 Для остановки сервера нажмите Ctrl+C`);
     });

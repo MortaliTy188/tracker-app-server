@@ -13,6 +13,8 @@ const UserAchievement = require("./userAchievementModel");
 const ActivityLog = require("./activityLogModel");
 const Friendship = require("./friendshipModel");
 const Message = require("./messageModel");
+const SkillComment = require("./skillCommentModel");
+const SkillLike = require("./skillLikeModel");
 
 // Определение связей между моделями
 
@@ -144,6 +146,56 @@ Message.belongsTo(User, {
   as: "receiver",
 });
 
+// Skill -> SkillComment (один навык может иметь много комментариев)
+Skill.hasMany(SkillComment, {
+  foreignKey: "skill_id",
+  as: "comments",
+});
+SkillComment.belongsTo(Skill, {
+  foreignKey: "skill_id",
+  as: "skill",
+});
+
+// User -> SkillComment (один пользователь может оставить много комментариев)
+User.hasMany(SkillComment, {
+  foreignKey: "user_id",
+  as: "skillComments",
+});
+SkillComment.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "author",
+});
+
+// SkillComment -> SkillComment (самосвязь для ответов на комментарии)
+SkillComment.hasMany(SkillComment, {
+  foreignKey: "parent_comment_id",
+  as: "replies",
+});
+SkillComment.belongsTo(SkillComment, {
+  foreignKey: "parent_comment_id",
+  as: "parentComment",
+});
+
+// Skill -> SkillLike (один навык может иметь много лайков)
+Skill.hasMany(SkillLike, {
+  foreignKey: "skill_id",
+  as: "likes",
+});
+SkillLike.belongsTo(Skill, {
+  foreignKey: "skill_id",
+  as: "skill",
+});
+
+// User -> SkillLike (один пользователь может поставить много лайков)
+User.hasMany(SkillLike, {
+  foreignKey: "user_id",
+  as: "skillLikes",
+});
+SkillLike.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
 module.exports = {
   sequelize,
   User,
@@ -158,4 +210,6 @@ module.exports = {
   ActivityLog,
   Friendship,
   Message,
+  SkillComment,
+  SkillLike,
 };

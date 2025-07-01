@@ -180,17 +180,32 @@ class SocketManager {
       const roomName = this.getChatRoomName(senderId, receiverId);
       this.io.to(roomName).emit("new_message", messageWithSender);
 
-      // Если получатель онлайн, но не в комнате чата, отправляем уведомление
+      // Дополнительно отправляем сообщение напрямую обеим сторонам
+      // чтобы гарантировать доставку, даже если они не в комнате
+      const senderSocketId = this.connectedUsers.get(senderId);
       const receiverSocketId = this.connectedUsers.get(receiverId);
+
+      if (senderSocketId) {
+        const senderSocket = this.io.sockets.sockets.get(senderSocketId);
+        if (senderSocket) {
+          senderSocket.emit("new_message", messageWithSender);
+        }
+      }
+
       if (receiverSocketId) {
         const receiverSocket = this.io.sockets.sockets.get(receiverSocketId);
-        if (receiverSocket && !receiverSocket.rooms.has(roomName)) {
-          receiverSocket.emit("message_notification", {
-            senderId,
-            senderName: socket.user.name,
-            content: content.substring(0, 100), // Превью сообщения
-            messageId: message.id,
-          });
+        if (receiverSocket) {
+          receiverSocket.emit("new_message", messageWithSender);
+
+          // Если получатель не в комнате чата, отправляем дополнительное уведомление
+          if (!receiverSocket.rooms.has(roomName)) {
+            receiverSocket.emit("message_notification", {
+              senderId,
+              senderName: socket.user.name,
+              content: content.substring(0, 100), // Превью сообщения
+              messageId: message.id,
+            });
+          }
         }
       }
 

@@ -1,26 +1,23 @@
 const sequelize = require("../config/db");
 const { DataTypes } = require("sequelize");
 
-const Skill = sequelize.define(
-  "skill",
+const SkillComment = sequelize.define(
+  "skill_comment",
   {
-    name: {
-      type: DataTypes.STRING,
-      allowNull: false,
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
     },
-    description: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    category_id: {
+    skill_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "skill_category",
+        model: "skills",
         key: "id",
       },
       onUpdate: "CASCADE",
-      onDelete: "RESTRICT",
+      onDelete: "CASCADE",
     },
     user_id: {
       type: DataTypes.INTEGER,
@@ -32,10 +29,19 @@ const Skill = sequelize.define(
       onUpdate: "CASCADE",
       onDelete: "CASCADE",
     },
-    is_public: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
+    content: {
+      type: DataTypes.TEXT,
       allowNull: false,
+    },
+    parent_comment_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: "skill_comments",
+        key: "id",
+      },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
     },
     created_at: {
       type: DataTypes.DATE,
@@ -47,11 +53,11 @@ const Skill = sequelize.define(
     },
   },
   {
-    tableName: "skills",
+    tableName: "skill_comments",
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
   }
 );
 
-module.exports = Skill;
+module.exports = SkillComment;
