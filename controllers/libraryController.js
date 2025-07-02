@@ -37,13 +37,40 @@ const getPublicSkills = async (req, res) => {
       ];
     }
 
-    const { count, rows: skills } = await Skill.findAndCountAll({
+    // Логирование для отладки
+    console.log("Library API - Query params:", {
+      page,
+      limit,
+      category_id,
+      search,
+      sort_by,
+      sort_order,
+    });
+    console.log("Library API - Where condition:", where);
+
+    // Separate count query without includes to avoid inflated count due to JOINs
+    const count = await Skill.count({
+      where,
+    });
+
+    // Определяем порядок сортировки для базы данных
+    let dbOrder = [[sort_by, sort_order]];
+    let needsPostSorting = false;
+
+    // Для сортировки по статистике используем сортировку по умолчанию в БД и потом сортируем в коде
+    if (["likes", "dislikes", "comments"].includes(sort_by)) {
+      dbOrder = [["created_at", "DESC"]]; // По умолчанию сортируем по дате создания
+      needsPostSorting = true;
+    }
+
+    // Main query with all includes
+    const skills = await Skill.findAll({
       where,
       include: [
         {
           model: User,
           as: "owner",
-          attributes: ["id", "name", "username", "avatar_url"],
+          attributes: ["id", "name", "avatar"],
         },
         {
           model: SkillCategory,
@@ -64,7 +91,7 @@ const getPublicSkills = async (req, res) => {
         {
           model: SkillLike,
           as: "likes",
-          attributes: ["type"],
+          attributes: ["type", "user_id"],
         },
         {
           model: SkillComment,
@@ -72,9 +99,16 @@ const getPublicSkills = async (req, res) => {
           attributes: ["id"],
         },
       ],
-      order: [[sort_by, sort_order]],
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      order: dbOrder,
+      // Если нужна сортировка по статистике, загружаем все записи без лимита и offset
+      limit: needsPostSorting ? undefined : parseInt(limit),
+      offset: needsPostSorting ? undefined : parseInt(offset),
+    });
+
+    console.log("Library API - Results:", {
+      count,
+      skillsLength: skills.length,
+      totalPages: Math.ceil(count / limit),
     });
 
     // Добавляем статистику лайков и комментариев
@@ -94,12 +128,82 @@ const getPublicSkills = async (req, res) => {
           ).length || 0,
       };
 
+      // Проверяем лайк текущего пользователя
+      if (req.user) {
+        console.log(`Library API - Skill ${skillData.id} all likes:`, likes);
+        console.log(
+          `Library API - Looking for user_id:`,
+          req.user.id,
+          typeof req.user.id
+        );
+        // Приводим к числу для корректного сравнения
+        const userId = parseInt(req.user.id);
+        const userLike = likes.find((like) => {
+          console.log(
+            `Comparing like.user_id ${
+              like.user_id
+            } (${typeof like.user_id}) with userId ${userId} (${typeof userId})`
+          );
+          return parseInt(like.user_id) === userId;
+        });
+        skillData.userLike = userLike ? userLike.type : null;
+        console.log(
+          `Library API - Skill ${skillData.id} userLike for user ${req.user.id}:`,
+          skillData.userLike
+        );
+        console.log(`Library API - Found userLike object:`, userLike);
+      } else {
+        skillData.userLike = null;
+      }
+
       // Убираем массивы лайков и комментариев из ответа
       delete skillData.likes;
       delete skillData.comments;
 
       return skillData;
     });
+
+    // Сортировка по статистике, если необходимо
+    if (needsPostSorting) {
+      skillsWithStats.sort((a, b) => {
+        let aValue, bValue;
+
+        if (sort_by === "likes") {
+          aValue = a.stats.likesCount;
+          bValue = b.stats.likesCount;
+        } else if (sort_by === "dislikes") {
+          aValue = a.stats.dislikesCount;
+          bValue = b.stats.dislikesCount;
+        } else if (sort_by === "comments") {
+          aValue = a.stats.commentsCount;
+          bValue = b.stats.commentsCount;
+        }
+
+        if (sort_order === "ASC") {
+          return aValue - bValue;
+        } else {
+          return bValue - aValue;
+        }
+      });
+
+      // Применяем пагинацию после сортировки
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + parseInt(limit);
+      const paginatedSkills = skillsWithStats.slice(startIndex, endIndex);
+
+      return res.json({
+        success: true,
+        data: {
+          skills: paginatedSkills,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(count / limit),
+            totalItems: count,
+            itemsPerPage: parseInt(limit),
+          },
+        },
+      });
+    }
 
     res.json({
       success: true,
@@ -134,7 +238,7 @@ const getSkillDetails = async (req, res) => {
         {
           model: User,
           as: "owner",
-          attributes: ["id", "name", "username", "avatar_url"],
+          attributes: ["id", "name", "avatar"],
         },
         {
           model: SkillCategory,
@@ -160,7 +264,7 @@ const getSkillDetails = async (req, res) => {
             {
               model: User,
               as: "user",
-              attributes: ["id", "name", "username"],
+              attributes: ["id", "name"],
             },
           ],
         },
@@ -173,7 +277,7 @@ const getSkillDetails = async (req, res) => {
             {
               model: User,
               as: "author",
-              attributes: ["id", "name", "username", "avatar_url"],
+              attributes: ["id", "name", "avatar"],
             },
             {
               model: SkillComment,
@@ -182,7 +286,7 @@ const getSkillDetails = async (req, res) => {
                 {
                   model: User,
                   as: "author",
-                  attributes: ["id", "name", "username", "avatar_url"],
+                  attributes: ["id", "name", "avatar"],
                 },
               ],
             },
@@ -215,8 +319,24 @@ const getSkillDetails = async (req, res) => {
 
     // Проверяем лайк текущего пользователя
     if (req.user) {
-      const userLike = likes.find((like) => like.user.id === req.user.id);
+      console.log(`SkillDetails API - All likes:`, likes);
+      console.log(
+        `SkillDetails API - Looking for user_id:`,
+        req.user.id,
+        typeof req.user.id
+      );
+      // Приводим к числу для корректного сравнения
+      const userId = parseInt(req.user.id);
+      const userLike = likes.find((like) => {
+        // В getSkillDetails лайки включают данные пользователя
+        const likeUserId = like.user
+          ? parseInt(like.user.id)
+          : parseInt(like.user_id);
+        console.log(`Comparing likeUserId ${likeUserId} with userId ${userId}`);
+        return likeUserId === userId;
+      });
       skillData.userLike = userLike ? userLike.type : null;
+      console.log(`SkillDetails API - userLike:`, skillData.userLike);
     }
 
     res.json({
@@ -345,7 +465,7 @@ const addSkillComment = async (req, res) => {
         {
           model: User,
           as: "author",
-          attributes: ["id", "name", "username", "avatar_url"],
+          attributes: ["id", "name", "avatar"],
         },
       ],
     });
@@ -391,7 +511,7 @@ const getSkillComments = async (req, res) => {
         {
           model: User,
           as: "author",
-          attributes: ["id", "name", "username", "avatar_url"],
+          attributes: ["id", "name", "avatar"],
         },
         {
           model: SkillComment,
@@ -400,7 +520,7 @@ const getSkillComments = async (req, res) => {
             {
               model: User,
               as: "author",
-              attributes: ["id", "name", "username", "avatar_url"],
+              attributes: ["id", "name", "avatar"],
             },
           ],
           order: [["created_at", "ASC"]],
@@ -469,6 +589,137 @@ const updateSkillPublicity = async (req, res) => {
   }
 };
 
+// Копировать навык из библиотеки
+const copySkillFromLibrary = async (req, res) => {
+  try {
+    const { skill_id } = req.params;
+    const user_id = req.user.id;
+
+    // Проверяем, что навык существует и публичный
+    const originalSkill = await Skill.findOne({
+      where: { id: skill_id, is_public: true },
+      include: [
+        {
+          model: Topic,
+          as: "topics",
+          include: [
+            {
+              model: TopicStatus,
+              as: "status",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+        {
+          model: SkillCategory,
+          as: "category",
+          attributes: ["id", "name"],
+        },
+      ],
+    });
+
+    if (!originalSkill) {
+      return res.status(404).json({
+        success: false,
+        message: "Навык не найден или не является публичным",
+      });
+    }
+
+    // Проверяем, что пользователь не копирует свой собственный навык
+    if (originalSkill.user_id === user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Нельзя копировать свой собственный навык",
+      });
+    }
+
+    // Проверяем, что у пользователя еще нет копии этого навыка
+    const existingCopy = await Skill.findOne({
+      where: {
+        user_id,
+        name: originalSkill.name,
+        description: originalSkill.description,
+      },
+    });
+
+    if (existingCopy) {
+      return res.status(400).json({
+        success: false,
+        message: "У вас уже есть копия этого навыка",
+      });
+    }
+
+    // Получаем статус "Не начато"
+    const notStartedStatus = await TopicStatus.findOne({
+      where: { name: "Не начато" },
+    });
+
+    if (!notStartedStatus) {
+      return res.status(500).json({
+        success: false,
+        message: "Не найден статус 'Не начато'",
+      });
+    }
+
+    // Создаем копию навыка
+    const newSkill = await Skill.create({
+      user_id,
+      name: originalSkill.name,
+      description: originalSkill.description,
+      category_id: originalSkill.category_id,
+      is_public: false, // По умолчанию скопированный навык приватный
+    });
+
+    // Копируем топики с обнуленным прогрессом
+    const topics = originalSkill.topics || [];
+    for (const topic of topics) {
+      await Topic.create({
+        skill_id: newSkill.id,
+        name: topic.name,
+        description: topic.description,
+        status_id: notStartedStatus.id, // Всегда "Не начато"
+        progress: 0, // Обнуляем прогресс
+        estimated_hours: topic.estimated_hours || 0,
+      });
+    }
+
+    // Получаем созданный навык с топиками для ответа
+    const skillWithTopics = await Skill.findByPk(newSkill.id, {
+      include: [
+        {
+          model: Topic,
+          as: "topics",
+          include: [
+            {
+              model: TopicStatus,
+              as: "status",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+        {
+          model: SkillCategory,
+          as: "category",
+          attributes: ["id", "name"],
+        },
+      ],
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Навык успешно скопирован",
+      data: { skill: skillWithTopics },
+    });
+  } catch (error) {
+    console.error("Error copying skill from library:", error);
+    res.status(500).json({
+      success: false,
+      message: "Ошибка при копировании навыка",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPublicSkills,
   getSkillDetails,
@@ -476,4 +727,5 @@ module.exports = {
   addSkillComment,
   getSkillComments,
   updateSkillPublicity,
+  copySkillFromLibrary,
 };

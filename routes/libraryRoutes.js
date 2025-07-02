@@ -9,6 +9,7 @@ const {
   addSkillComment,
   getSkillComments,
   updateSkillPublicity,
+  copySkillFromLibrary,
 } = require("../controllers/libraryController");
 
 /**
@@ -47,9 +48,7 @@ const {
  *           type: integer
  *         name:
  *           type: string
- *         username:
- *           type: string
- *         avatar_url:
+ *         avatar:
  *           type: string
  *
  *     SkillStats:
@@ -262,6 +261,44 @@ router.post("/skills/:skill_id/comments", authMiddleware, addSkillComment);
  *       404:
  *         description: Навык не найден
  */
-router.put("/skills/:id/publicity", authMiddleware, updateSkillPublicity);
+router.patch("/skills/:id/publicity", authMiddleware, updateSkillPublicity);
+
+/**
+ * @swagger
+ * /api/library/skills/{skill_id}/copy:
+ *   post:
+ *     summary: Копировать навык из библиотеки себе
+ *     tags: [Library]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: skill_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       201:
+ *         description: Навык успешно скопирован
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     skill:
+ *                       $ref: '#/components/schemas/Skill'
+ *       400:
+ *         description: Нельзя копировать свой навык или уже есть копия
+ *       404:
+ *         description: Навык не найден
+ */
+router.post("/skills/:skill_id/copy", authMiddleware, copySkillFromLibrary);
 
 module.exports = router;
