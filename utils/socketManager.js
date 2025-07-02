@@ -21,6 +21,9 @@ class SocketManager {
       // Сохраняем подключение пользователя
       this.connectedUsers.set(socket.userId, socket.id);
 
+      // Присоединяем пользователя к его персональной комнате для уведомлений
+      socket.join(`user_${socket.userId}`);
+
       // Уведомляем о статусе онлайн
       this.broadcastUserStatus(socket.userId, "online");
 

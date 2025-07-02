@@ -41,6 +41,7 @@ const PortFinder = require("./utils/portFinder");
 
 // Импорт Socket.IO менеджера
 const SocketManager = require("./utils/socketManager");
+const AchievementManager = require("./utils/achievementManager");
 
 const app = express();
 const server = createServer(app);
@@ -64,6 +65,9 @@ const io = new Server(server, {
 
 // Инициализация Socket.IO менеджера
 const socketManager = new SocketManager(io);
+
+// Инициализация AchievementManager с SocketManager
+AchievementManager.setSocketManager(socketManager);
 
 // Статическая раздача загруженных файлов
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -314,6 +318,13 @@ process.on("unhandledRejection", (reason, promise) => {
   console.error("❌ Необработанное отклонение Promise:", reason);
   process.exit(1);
 });
+
+// Экспорт для получения доступа к socketManager из других модулей
+function getSocketManager() {
+  return socketManager;
+}
+
+module.exports = { getSocketManager };
 
 // Запуск сервера
 startServer();

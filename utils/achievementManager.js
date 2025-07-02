@@ -15,6 +15,14 @@ const ActivityLogger = require("./activityLogger");
  * Утилита для управления системой достижений
  */
 class AchievementManager {
+  static socketManager = null;
+
+  /**
+   * Устанавливает экземпляр SocketManager для отправки уведомлений
+   */
+  static setSocketManager(socketManager) {
+    this.socketManager = socketManager;
+  }
   /**
    * Проверяет и обновляет прогресс достижений для пользователя
    * @param {number} userId - ID пользователя
@@ -23,10 +31,16 @@ class AchievementManager {
    */
   static async checkAchievements(userId, actionType, actionData = {}) {
     try {
+      console.log(
+        `🎯 Проверка достижений для пользователя ${userId}, действие: ${actionType}`
+      );
+
       // Получаем все активные достижения
       const achievements = await Achievement.findAll({
         where: { is_active: true },
       });
+
+      console.log(`📋 Найдено ${achievements.length} активных достижений`);
 
       for (const achievement of achievements) {
         await this.checkSingleAchievement(
@@ -107,6 +121,26 @@ class AchievementManager {
           console.error(
             `Ошибка логирования достижения ${achievement.name}:`,
             logError
+          );
+        }
+
+        // Отправляем уведомление через WebSocket если доступно
+        try {
+          if (this.socketManager && this.socketManager.io) {
+            await this.notifyAchievementEarned(
+              userId,
+              achievement,
+              this.socketManager.io
+            );
+          } else {
+            console.warn(
+              "SocketManager не инициализирован для отправки уведомлений о достижениях"
+            );
+          }
+        } catch (socketError) {
+          console.error(
+            `Ошибка отправки уведомления о достижении ${achievement.name}:`,
+            socketError
           );
         }
 
@@ -1126,6 +1160,57 @@ class AchievementManager {
         error
       );
       return 0;
+    }
+  }
+
+  /**
+   * Отправляет уведомление о получении достижения через WebSocket
+   * @param {number} userId - ID пользователя
+   * @param {Object} achievement - Данные достижения
+   * @param {Object} io - Экземпляр Socket.IO
+   */
+  static async notifyAchievementEarned(userId, achievement, io) {
+    try {
+      console.log(
+        `📡 Отправка уведомления о достижении пользователю ${userId}: ${achievement.name}`
+      );
+
+      if (!io) {
+        console.log(
+          "❌ Socket.IO instance not available for achievement notification"
+        );
+        return;
+      }
+
+      // Формируем данные для уведомления
+      const notificationData = {
+        type: "achievement_earned",
+        achievement: {
+          id: achievement.id,
+          name: achievement.name,
+          description: achievement.description,
+          icon: achievement.icon,
+          points: achievement.points,
+          rarity: achievement.rarity,
+          earnedAt: new Date(),
+        },
+        message: `🎉 Поздравляем! Вы получили достижение "${achievement.name}"!`,
+      };
+
+      console.log(`📡 Отправка в комнату: user_${userId}`);
+      console.log(`📡 Данные уведомления:`, notificationData);
+
+      // Отправляем уведомление конкретному пользователю
+      io.to(`user_${userId}`).emit(
+        "achievement_notification",
+        notificationData
+      );
+
+      console.log(
+        `✅ Achievement notification sent to user ${userId}: ${achievement.name}`
+      );
+    } catch (error) {
+      console.error("Error sending achievement notification:", error);
     }
   }
 }
